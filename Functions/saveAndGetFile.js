@@ -1,4 +1,3 @@
-
 // This is for cloudinary
 
 const sharp = require("sharp");
@@ -47,7 +46,7 @@ const saveAndGetFile = async (file) => {
 
     const compressedBuffer = await compressToTargetSize(inputBuffer, fileExtension);
     if (!compressedBuffer) {
-        console.log("Unsupported format or compression failed.");
+        //console.log("Unsupported format or compression failed.");
         return null;
     }
 
@@ -87,19 +86,7 @@ const saveAndGetFile = async (file) => {
 
 module.exports.saveAndGetFile = saveAndGetFile;
 
-
-
-
-
-// This is for local upload 
-
-
-
-
-
-
-
-
+// This is for local upload
 
 // const fs = require("fs").promises;
 // const path = require("path");
@@ -150,12 +137,12 @@ module.exports.saveAndGetFile = saveAndGetFile;
 
 //     try {
 //         const inputBuffer = await fs.readFile(oldPath);
-//         console.log("Original size:", (inputBuffer.length / 1024).toFixed(2), "KB");
+//         //console.log("Original size:", (inputBuffer.length / 1024).toFixed(2), "KB");
 
 //         let compressedBuffer = await compressToTargetSize(inputBuffer, fileExtension);
 
 //         if (!compressedBuffer) {
-//             console.log("Unsupported format or compression failed, copying original.");
+//             //console.log("Unsupported format or compression failed, copying original.");
 //             await fs.copyFile(oldPath, newPath);
 //             return {
 //                 name: newFileName,
@@ -163,10 +150,10 @@ module.exports.saveAndGetFile = saveAndGetFile;
 //             };
 //         }
 
-//         console.log("Compressed size:", (compressedBuffer.length / 1024).toFixed(2), "KB");
+//         //console.log("Compressed size:", (compressedBuffer.length / 1024).toFixed(2), "KB");
 
 //         await fs.writeFile(newPath, compressedBuffer);
-//         console.log("=======> ", newFileName);
+//         //console.log("=======> ", newFileName);
 
 //         return {
 //             name: newFileName,

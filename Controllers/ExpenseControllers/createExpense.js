@@ -24,9 +24,9 @@ const createExpense = async (req, res) => {
 
         if (documents) {
             documents.then((data) => {
-                // console.log("Create Expense Data: ", data);
+                // //console.log("Create Expense Data: ", data);
                 expense.documents = data;
-                
+
                 expense
                     .save()
                     .then((expense) => {

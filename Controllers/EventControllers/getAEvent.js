@@ -4,7 +4,7 @@ const getAEvent = async (req, res) => {
     try {
         const event = await EventModel.findOne({ name: req.params.name }).populate("products");
 
-        // console.log(event);
+        // //console.log(event);
 
         if (!event) {
             return res.status(404).send({ message: "Event not found", error: true });

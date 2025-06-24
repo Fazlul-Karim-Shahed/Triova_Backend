@@ -30,8 +30,7 @@ const getAllFiles = async (req, res) => {
         const files = await fetchAllCloudinaryFiles("uploads");
 
         const formattedFiles = files.map((file) => {
-
-            // console.log(file)
+            // //console.log(file)
 
             return {
                 ...file,

@@ -260,8 +260,8 @@ const createOrder = async (req, res) => {
         `;
 
         // Send emails
-        // await sendEmail(customerEmail, `Your Order #${savedOrder.orderNo} Confirmation`, customerEmailTemplate); // For customer
-        // await sendEmail(process.env.EMAIL_USER, `New Order Received - #${savedOrder.orderNo}`, adminEmailTemplate); // For admin
+        await sendEmail(customerEmail, `Your Order #${savedOrder.orderNo} Confirmation`, customerEmailTemplate); // For customer
+        await sendEmail(process.env.EMAIL_USER, `New Order Received - #${savedOrder.orderNo}`, adminEmailTemplate); // For admin
 
         return res.status(200).json({
             message: "Order placed successfully",

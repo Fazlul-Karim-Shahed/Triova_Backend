@@ -5,8 +5,6 @@ const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 
-
-
 const MAX_SIZE_KB = 400;
 
 const compressImage = async (inputBuffer, fileExtension) => {
@@ -178,13 +176,13 @@ module.exports.saveMultipleFile = saveMultipleFile;
 
 //                     const inputBuffer = await fs.readFile(oldPath);
 
-//                     console.log(`\nProcessing: ${originalFileName}`);
-//                     console.log("Original size:", (inputBuffer.length / 1024).toFixed(2), "KB");
+//                     //console.log(`\nProcessing: ${originalFileName}`);
+//                     //console.log("Original size:", (inputBuffer.length / 1024).toFixed(2), "KB");
 
 //                     let compressedBuffer = await compressImage(inputBuffer, fileExtension);
 
 //                     if (!compressedBuffer) {
-//                         console.log("Unsupported format or compression failed, copying original.");
+//                         //console.log("Unsupported format or compression failed, copying original.");
 //                         await fs.copyFile(oldPath, newPath);
 //                         return resolve({
 //                             name: newFileName,
@@ -192,7 +190,7 @@ module.exports.saveMultipleFile = saveMultipleFile;
 //                         });
 //                     }
 
-//                     console.log("Compressed size:", (compressedBuffer.length / 1024).toFixed(2), "KB");
+//                     //console.log("Compressed size:", (compressedBuffer.length / 1024).toFixed(2), "KB");
 //                     await fs.writeFile(newPath, compressedBuffer);
 
 //                     resolve({

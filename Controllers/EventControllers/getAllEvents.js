@@ -1,7 +1,7 @@
 const { EventModel } = require("../../Models/EventModel");
 
 const getAllEvents = async (req, res) => {
-    console.log(req.params);
+    //console.log(req.params);
 
     const now = new Date();
     const startOfToday = new Date(now.setHours(0, 0, 0, 0));

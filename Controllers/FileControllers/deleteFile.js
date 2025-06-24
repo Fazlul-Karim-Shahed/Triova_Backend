@@ -22,13 +22,10 @@ const deleteFile = async (req, res) => {
 
         if (result.result === "not found") {
             return res.status(404).send({ message: "File not found in Cloudinary" });
-        }
-        else {
-            console.log('Deleted')
+        } else {
+            //console.log('Deleted')
             res.status(200).send({ error: false, message: "File deleted from Cloudinary" });
         }
-
-        
     } catch (err) {
         console.error("Cloudinary deletion error:", err);
         res.status(500).send({ error: true, message: "Error deleting file from Cloudinary" });

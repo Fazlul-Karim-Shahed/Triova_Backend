@@ -25,25 +25,25 @@ const createEvent = async (req, res) => {
 
         let event = new EventModel(fields);
 
-        console.log(event);
+        //console.log(event);
 
         const promotionalImage = files && files.promotionalImage.length > 0 ? saveAndGetFile(files.promotionalImage[0]) : null;
 
-        // console.log(promotionalImage);
+        // //console.log(promotionalImage);
 
         promotionalImage.then((promotionalImage) => {
             event.promotionalImage = promotionalImage;
             event._id = event._id;
 
-            // console.log(promotionalImage);
+            // //console.log(promotionalImage);
             event
                 .save()
                 .then((event) => {
-                    console.log(event);
+                    //console.log(event);
                     res.send({ message: "image Slider created successfully", error: false, data: event });
                 })
                 .catch((err) => {
-                    console.log(err);
+                    //console.log(err);
                     res.send({ message: err.message, error: true });
                 });
         });

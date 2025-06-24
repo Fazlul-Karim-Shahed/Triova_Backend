@@ -96,7 +96,7 @@ const port = 4444;
 
 cron.schedule("*/13 * * * *", async () => {
     try {
-        // const response = await axios.get("https://pals-backend.onrender.com"); // Replace with your server URL
+        const response = await axios.get("https://triova.onrender.com"); // Replace with your server URL
         console.log("Server is up and running:");
     } catch (error) {
         console.error("Error hitting server:", error.message);

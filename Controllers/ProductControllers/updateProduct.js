@@ -39,6 +39,9 @@ const updateProduct = async (req, res) => {
         if (imageList) {
             imageList
                 .then((data) => {
+
+                    console.log(data)
+
                     product
                         .save()
                         .then((product) => {

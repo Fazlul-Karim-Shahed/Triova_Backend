@@ -1,5 +1,6 @@
 const { IncomingForm } = require("formidable");
 const fs = require("fs");
+const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const stream = require("stream");
 
@@ -22,7 +23,8 @@ const uploadFiles = async (req, res) => {
 
         const tempPath = file.filepath || file.path;
         const originalName = file.originalFilename || `upload-${Date.now()}`;
-        const baseName = originalName.split(/[/\\]/).pop().split(".")[0]; // remove extension
+        const fileExtension = path.extname(file.originalFilename).toLowerCase();
+        const baseName = path.basename(file.originalFilename, fileExtension);
 
         // console.log("Processing: ", baseName);
 

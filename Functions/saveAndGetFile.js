@@ -60,9 +60,9 @@ const saveAndGetFile = async (file) => {
         const uploadStream = cloudinary.uploader.upload_stream(
             {
                 folder: "uploads",
-                public_id: baseName,
+                public_id: `${baseName.replace(/\s+/g, "-")}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
                 resource_type: "image",
-                overwrite: true,
+                overwrite: false,
             },
             (error, result) => {
                 if (error) {
@@ -71,7 +71,7 @@ const saveAndGetFile = async (file) => {
                 } else {
                     resolve({
                         ...result,
-                        name: file.originalFilename,
+                        name: result.display_name + "." + result.format,
                         contentType: file.mimetype,
                     });
                 }

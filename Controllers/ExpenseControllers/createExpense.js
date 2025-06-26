@@ -22,10 +22,12 @@ const createExpense = async (req, res) => {
 
         let documents = files && files["documents[]"] && files["documents[]"].length > 0 ? saveMultipleFile(files["documents[]"]) : null;
 
+
         if (documents) {
             documents.then((data) => {
                 // //console.log("Create Expense Data: ", data);
                 expense.documents = data;
+                // console.log(data)
 
                 expense
                     .save()

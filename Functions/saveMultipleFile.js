@@ -64,6 +64,7 @@ const saveMultipleFile = async (files) => {
                     public_id: baseName,
                     resource_type: "image",
                     overwrite: true,
+                    invalidate: true,
                 },
                 (error, result) => {
                     if (error) {
@@ -86,6 +87,7 @@ const saveMultipleFile = async (files) => {
                         public_id: baseName,
                         resource_type: "image",
                         overwrite: true,
+                        invalidate: true,
                     },
                     (error, result) => {
                         if (error) {

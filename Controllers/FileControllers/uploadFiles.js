@@ -44,6 +44,7 @@ const uploadFiles = async (req, res) => {
                         public_id: baseName,
                         resource_type: "image",
                         overwrite: true,
+                        invalidate: true,
                     },
                     (error, result) => {
                         if (error) return reject(error);
@@ -57,7 +58,6 @@ const uploadFiles = async (req, res) => {
                             });
                             resolve(result);
                         }
-                        
                     }
                 );
 

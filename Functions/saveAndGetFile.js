@@ -63,6 +63,7 @@ const saveAndGetFile = async (file) => {
                 public_id: baseName,
                 resource_type: "image",
                 overwrite: true,
+                invalidate: true,
             },
             (error, result) => {
                 if (error) {

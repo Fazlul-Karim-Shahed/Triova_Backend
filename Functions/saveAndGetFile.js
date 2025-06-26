@@ -60,7 +60,7 @@ const saveAndGetFile = async (file) => {
         const uploadStream = cloudinary.uploader.upload_stream(
             {
                 folder: "uploads",
-                public_id: `${baseName.replace(/\s+/g, "-")}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+                public_id: `triova_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
                 resource_type: "image",
                 overwrite: false,
             },

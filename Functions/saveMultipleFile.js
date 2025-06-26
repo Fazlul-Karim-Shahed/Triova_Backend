@@ -61,7 +61,7 @@ const saveMultipleFile = async (files) => {
             const uploadResult = await cloudinary.uploader.upload_stream(
                 {
                     folder: "uploads",
-                    public_id: `${baseName.replace(/\s+/g, "-")}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+                    public_id: `triova_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
                     resource_type: "image",
                     overwrite: false,
                 },
@@ -72,7 +72,7 @@ const saveMultipleFile = async (files) => {
                     }
                     return {
                         ...result,
-                        name: result.display_name + '.' + result.format,
+                        name: result.display_name + "." + result.format,
                         contentType: file.mimetype,
                     };
                 }
@@ -83,7 +83,7 @@ const saveMultipleFile = async (files) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
                     {
                         folder: "uploads",
-                        public_id: `${baseName.replace(/\s+/g, "-")}-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+                        public_id: `triova_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
                         resource_type: "image",
                         overwrite: false,
                     },

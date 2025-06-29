@@ -77,8 +77,10 @@ const getAllProduct = async (req, res) => {
     delete searchParams.search;
 
     const isValidSearch = typeof keyword === "string" && keyword.trim() !== "";
-    const baseFilter = { verified: true, ...searchParams };
+    const baseFilter = { ...searchParams };
     let allProducts = [];
+
+    console.log(baseFilter);
 
     if (isValidSearch) {
         const cleanKeyword = keyword.trim();

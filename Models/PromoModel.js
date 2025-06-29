@@ -9,9 +9,10 @@ const PromoModel = model(
             description: { type: String, default: "" },
             startDate: { type: Date, default: Date.now, require: true },
             endDate: { type: Date, default: Date.now, require: true },
-            discount: { type: Number, required: true, min: 0 }, 
+            discount: { type: Number, required: true, min: 0 },
             maxAmount: { type: Number, required: true, min: 0, default: 0 },
             minOrder: { type: Number, required: true, min: 0, default: 0 },
+            owner: { type: Schema.Types.ObjectId, ref: "Employee" },
         },
         { timestamps: true }
     )

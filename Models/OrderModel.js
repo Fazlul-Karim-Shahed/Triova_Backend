@@ -1,4 +1,4 @@
-const { model, Schema } = require("mongoose");
+const { model, Schema, mongo, default: mongoose } = require("mongoose");
 
 const OrderModel = model(
     "Order",
@@ -28,6 +28,7 @@ const OrderModel = model(
             mainPrice: { type: Number, required: true },
             discountedAmount: { type: Number, required: true },
             totalPrice: { type: Number, required: true },
+            promoCode: { type: Schema.Types.ObjectId, ref: "Promo" },
 
             discount: { type: Number },
             paymentMethod: { type: String, required: [true, "Payment Method is required"], default: "Cash on Delivery", enum: ["Cash on Delivery", "Bkash", "Nagad", "Card", "Bank"] },

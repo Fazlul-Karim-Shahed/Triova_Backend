@@ -5,7 +5,7 @@ const { PromoModel } = require("../../Models/PromoModel")
 
 const getAllPromo = async (req, res) => {
 
-    let promo = await PromoModel.find()
+    let promo = await PromoModel.find().populate('owner')
 
     if (promo.length != 0) {
 

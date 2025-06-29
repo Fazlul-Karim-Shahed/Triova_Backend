@@ -25,7 +25,7 @@ const signup = async (req, res) => {
 
         data['password'] = hashedPass
 
-        data = data.role === 'admin' ? new AdminModel(data) : data.role === 'superAdmin' ? new SuperAdminModel(data) : data.role === 'employee' ? new EmployeeModel(data) : new UserModel(data)
+        data = data.role === 'admin' ? new AdminModel(data) : data.role === 'superAdmin' ? new SuperAdminModel(data) : data.role === 'employee' ? new EmployeeModel(data) : data.role === 'promoter' ? new EmployeeModel(data) : data.role === 'brandAmbassador' ? new EmployeeModel(data) : data.role === 'influencer' ? new EmployeeModel(data) : new UserModel(data)
 
 
         data = data.save().then(data => {
@@ -38,6 +38,7 @@ const signup = async (req, res) => {
             })
         })
             .catch(err => {
+                console.log(err)
                 res.send({ message: 'Something went wrong while signup', error: true, value: err.message })
             })
 

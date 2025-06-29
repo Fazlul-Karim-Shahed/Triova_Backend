@@ -2,7 +2,7 @@ const { PromoModel } = require("../../Models/PromoModel");
 
 const getAPromo = async (req, res) => {
     // //console.log(req.params.code);
-    let promo = await PromoModel.findOne({ code: req.params.code });
+    let promo = await PromoModel.findOne({ code: req.params.code }).populate("owner");
     // //console.log(promo)
 
     if (promo) {

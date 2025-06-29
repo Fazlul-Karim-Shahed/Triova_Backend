@@ -13,6 +13,9 @@ const PromoModel = model(
             maxAmount: { type: Number, required: true, min: 0, default: 0 },
             minOrder: { type: Number, required: true, min: 0, default: 0 },
             owner: { type: Schema.Types.ObjectId, ref: "Employee" },
+            products: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+            commission: { type: Number, default: 0 },
+
         },
         { timestamps: true }
     )

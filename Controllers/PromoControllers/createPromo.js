@@ -16,6 +16,13 @@ const createPromo = async (req, res) => {
 
         fields = cleanObject(formDataToObj(fields));
 
+        if (!fields.owner || fields.owner === "null" || fields.owner === "undefined" || fields.owner === "") {
+            // delete field
+            delete fields.owner;
+        }
+
+        // console.log(fields);
+
         let promo = new PromoModel(fields);
 
         promo
@@ -24,6 +31,7 @@ const createPromo = async (req, res) => {
                 res.send({ message: "promo created successfully", error: false, data: promo });
             })
             .catch((err) => {
+                // console.log(err)
                 res.send({ message: err.message, error: true });
             });
     });

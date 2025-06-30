@@ -26,11 +26,11 @@ const getAllOrders = async (req, res) => {
         filter.promoCode = { $ne: null };
     }
 
-    console.log(filter);
+    // console.log(filter);
     try {
         const order = await OrderModel.find(filter).sort({ orderDate: -1 }).populate({ path: "orderList.productId", model: "Product" }).populate(["deliveryMethod", "promoCode", "reffer"]);
 
-        console.log(order);
+        // console.log(order);
 
         if (order.length !== 0) {
             return res.status(200).send({

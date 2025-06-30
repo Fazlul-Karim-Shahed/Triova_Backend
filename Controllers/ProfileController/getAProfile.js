@@ -9,7 +9,14 @@ const { UserModel } = require("../../Models/UserModel")
 
 const getAProfile = async (req, res) => {
 
-    let batch = req.params.role === 'user' ? await UserModel.findOne({ _id: req.params.id }) : req.params.role === 'superAdmin' ? await SuperAdminModel.findOne({ _id: req.params.id }) : req.params.role === 'employee' ? await EmployeeModel.findOne({ _id: req.params.id }) : await AdminModel.findOne({ _id: req.params.id })
+    let batch =
+        req.params.role === "user"
+            ? await UserModel.findOne({ _id: req.params.id })
+            : req.params.role === "superAdmin"
+            ? await SuperAdminModel.findOne({ _id: req.params.id })
+            : req.params.role === "employee"
+            ? await EmployeeModel.findOne({ _id: req.params.id })
+            : req.params.role === "promoter" ? await EmployeeModel.findOne({ _id: req.params.id }) : req.params.role === "brandAmbassador" ? await EmployeeModel.findOne({ _id: req.params.id }) : req.params.role === "influencer" ? await EmployeeModel.findOne({ _id: req.params.id }) : await AdminModel.findOne({ _id: req.params.id })
 
     if (batch) {
 

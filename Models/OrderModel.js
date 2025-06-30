@@ -28,7 +28,10 @@ const OrderModel = model(
             mainPrice: { type: Number, required: true },
             discountedAmount: { type: Number, required: true },
             totalPrice: { type: Number, required: true },
+
             promoCode: { type: Schema.Types.ObjectId, ref: "Promo", default: null },
+            reffer: { type: Schema.Types.ObjectId, ref: "Employee", default: null },
+            commission: { type: Number, default: 0 },
 
             discount: { type: Number },
             paymentMethod: { type: String, required: [true, "Payment Method is required"], default: "Cash on Delivery", enum: ["Cash on Delivery", "Bkash", "Nagad", "Card", "Bank"] },

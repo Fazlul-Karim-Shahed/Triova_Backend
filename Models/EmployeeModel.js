@@ -33,6 +33,7 @@ const EmployeeModel = model(
             mobileVerified: { type: Boolean, default: false },
             superAdminVerified: { type: Boolean, default: false, required: true },
             totalCommission: { type: Number, default: 0 },
+            commissionRate: { type: Number, default: 0 },
             payment: [
                 {
                     type: Object,
@@ -40,7 +41,7 @@ const EmployeeModel = model(
                     date: { type: Date, default: Date.now },
                     description: { type: String },
                     document: { contentType: String, type: Object, name: String },
-                    paymentMethod: { type: String, default: "Bkash", enum: ["Cash on Delivery", "Bkash", "Nagad", "Card", "Bank"] },
+                    paymentMethod: { type: String, default: "Bkash", enum: ["Cash", "Bkash", "Nagad", "Card", "Bank"] },
                     paymentStatus: { type: String, default: "Unpaid", enum: ["Unpaid", "Paid"] },
                     transactionId: { type: String },
                 },

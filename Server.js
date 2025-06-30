@@ -23,6 +23,7 @@ const FileRouters = require("./Routers/FileRouters");
 const EventRouters = require("./Routers/EventRouters");
 const PromoRouters = require("./Routers/PromoRouters");
 const TaskRouters = require("./Routers/TaskRouters");
+const EmployeeRouters = require("./Routers/EmployeeRouters");
 const cron = require("node-cron");
 const axios = require("axios");
 
@@ -83,6 +84,7 @@ app.use("/api/slider", ImageSliderRouters);
 app.use("/api/event", EventRouters);
 app.use("/api/promo", PromoRouters);
 app.use("/api/task", TaskRouters);
+app.use("/api/employee", EmployeeRouters);
 
 app.get("/", (req, res) => res.sendFile(path.resolve("./Server.html")));
 

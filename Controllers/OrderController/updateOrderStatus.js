@@ -1,72 +1,89 @@
-
-
-
-const fs = require('fs');
-const path = require('path');
 const { OrderModel } = require("../../Models/OrderModel");
 const { ProductModel } = require("../../Models/ProductModel");
-const formidable = require('formidable');
-const { formDataToObj } = require('../../Functions/formDataToObj');
-const { saveAndGetFile } = require('../../Functions/saveAndGetFile');
-const { cleanObject } = require('../../Functions/cleanObject');
-
+const { EmployeeModel } = require("../../Models/EmployeeModel");
 
 const updateOrderStatus = async (req, res) => {
+    try {
+        const order = await OrderModel.findById(req.params.orderId).populate("reffer");
 
-    let order = await OrderModel.findById(req.params.orderId)
-    let products = await ProductModel.find({ _id: { $in: order.orderList.map(item => item.productId) } })
+        if (!order) {
+            return res.status(400).json({ message: "Order not found", error: true });
+        }
 
-    if (!order) {
-        res.status(400).json({ message: "Order not found", error: true })
-    }
+        const products = await ProductModel.find({
+            _id: { $in: order.orderList.map((item) => item.productId) },
+        });
 
-    order.orderStatus = req.body.orderStatus;
-    order.deliveryMethod = req.body.deliveryMethod;
+        order.orderStatus = req.body.orderStatus;
+        order.deliveryMethod = req.body.deliveryMethod;
 
+        await order.save();
 
-    if (order.orderStatus == 'Returned') {
-        order.save().then(order => {
-            for (let product in products) {
-                product = products[product]
-                let orderItem = order.orderList.find(item => item.productId == product._id)
+        // ✅ If order is Returned → restore stock
+        if (order.orderStatus === "Returned") {
+            for (let product of products) {
+                const orderItem = order.orderList.find((item) => item.productId.toString() === product._id.toString());
 
-                product.stock = product.stock + Number(orderItem.quantity)
+                product.stock += Number(orderItem.quantity);
+
+                // Update color stock
                 if (product.colors.length > 0) {
-                    product.colors = product.colors.map(c => {
-                        if (c.color == orderItem.color) {
-                            c.stock = c.stock + Number(orderItem.quantity)
+                    product.colors = product.colors.map((c) => {
+                        if (c.color === orderItem.color) {
+                            c.stock += Number(orderItem.quantity);
                         }
-                        return c
-                    })
+                        return c;
+                    });
                 }
+
+                // Update size stock
                 if (product.sizes.length > 0) {
-                    product.sizes = product.sizes.map(s => {
-                        if ((s.size == orderItem.size) && (s.referenceColor == '' || s.referenceColor == 0 || s.referenceColor == null) ? true : (s.referenceColor === orderItem.color)) {
-                            s.stock = s.stock + Number(orderItem.quantity)
+                    product.sizes = product.sizes.map((s) => {
+                        const matchColor = !s.referenceColor || s.referenceColor === "" || s.referenceColor === 0 || s.referenceColor === orderItem.color;
+                        if (s.size === orderItem.size && matchColor) {
+                            s.stock += Number(orderItem.quantity);
                         }
-                        return s
-                    })
+                        return s;
+                    });
                 }
 
-                ProductModel.findByIdAndUpdate(product._id, product).then(product => { }).catch(err => { res.status(400).json({ message: `Failed to update product ${product.name}`, error: err }) })
+                await ProductModel.findByIdAndUpdate(product._id, product);
             }
-            res.status(200).json({ message: `Order ${order.orderStatus} successfully`, order })
-        }).catch(err => {
-            res.status(400).json({ message: `Failed to ${order.orderStatus} order`, error: err })
-        })
+        }
+
+        // ✅ Recalculate employee commission if order has a refferer
+        if (order.reffer && order.reffer._id) {
+            const employeeId = order.reffer._id;
+
+            const allDeliveredOrders = await OrderModel.find({
+                reffer: employeeId,
+                orderStatus: "Delivered",
+            });
+
+            let totalCommission = 0;
+
+            for (let o of allDeliveredOrders) {
+                const rate = o.commission || 0;
+                totalCommission += o.totalPrice * (rate / 100);
+            }
+
+            // 🔁 Update employee's totalCommission
+            await EmployeeModel.findByIdAndUpdate(employeeId, {
+                totalCommission: totalCommission,
+            });
+        }
+
+        res.status(200).json({
+            message: `Order ${order.orderStatus} successfully`,
+            order,
+        });
+    } catch (err) {
+        console.error("Order status update error:", err);
+        res.status(500).json({
+            message: `Failed to update order`,
+            error: err,
+        });
     }
+};
 
-    else {
-        order.save().then(order => {
-            res.status(200).json({ message: `Order ${order.orderStatus} successfully`, order })
-        }).catch(err => {
-            res.status(400).json({ message: `Failed to ${order.orderStatus} order`, error: err })
-        })
-    }
-
-
-
-
-}
-
-module.exports.updateOrderStatus = updateOrderStatus
+module.exports.updateOrderStatus = updateOrderStatus;

@@ -2,9 +2,7 @@ const { SettingsModel } = require("../../Models/SettingsModel");
 
 const getSettings = async (req, res) => {
     try {
-        const settings = await SettingsModel.find().populate("bestSelling")
-            .sort({ createdAt: -1 }) // latest
-            .populate("bestSelling", "name sellingPrice image");
+        const settings = await SettingsModel.find().populate({ path: "bestSelling", model: "Product" })
 
         if (!settings) {
             return res.status(404).send({ message: "Settings not found", error: true });

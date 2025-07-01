@@ -1,4 +1,4 @@
-const { model, Schema, default: mongoose } = require("mongoose");
+const { model, Schema } = require("mongoose");
 
 const SettingsModel = model(
     "Settings",

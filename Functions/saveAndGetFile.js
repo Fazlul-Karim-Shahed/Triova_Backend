@@ -1,5 +1,3 @@
-// This is for cloudinary
-
 const sharp = require("sharp");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
@@ -26,6 +24,7 @@ const compressToTargetSize = async (inputBuffer, fileExtension) => {
         } else if (fileExtension === ".webp") {
             compressedBuffer = await sharpInstance.clone().webp({ quality }).toBuffer();
         } else {
+            // For unsupported formats here (including SVG), return null to handle separately
             return null;
         }
 
@@ -44,10 +43,19 @@ const saveAndGetFile = async (file) => {
     const fileExtension = path.extname(file.originalFilename).toLowerCase();
     const baseName = path.basename(file.originalFilename, fileExtension);
 
-    const compressedBuffer = await compressToTargetSize(inputBuffer, fileExtension);
-    if (!compressedBuffer) {
-        //console.log("Unsupported format or compression failed.");
-        return null;
+    let bufferToUpload = null;
+
+    // If SVG, skip compression and use original buffer directly
+    if (fileExtension === ".svg") {
+        bufferToUpload = inputBuffer;
+    } else {
+        // For other supported image types, try to compress
+        const compressedBuffer = await compressToTargetSize(inputBuffer, fileExtension);
+        if (!compressedBuffer) {
+            console.log("Unsupported format or compression failed.");
+            return null;
+        }
+        bufferToUpload = compressedBuffer;
     }
 
     return await new Promise((resolve) => {
@@ -80,7 +88,7 @@ const saveAndGetFile = async (file) => {
         );
 
         const bufferStream = new stream.PassThrough();
-        bufferStream.end(compressedBuffer);
+        bufferStream.end(bufferToUpload);
         bufferStream.pipe(uploadStream);
     });
 };

@@ -1,9 +1,8 @@
-// For cloudinary
-
 const sharp = require("sharp");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
+const stream = require("stream");
 
 const MAX_SIZE_KB = 400;
 
@@ -25,6 +24,7 @@ const compressImage = async (inputBuffer, fileExtension) => {
         } else if (fileExtension === ".webp") {
             buffer = await sharpInstance.webp({ quality }).toBuffer();
         } else {
+            // Unsupported formats return null here
             return null;
         }
 
@@ -47,10 +47,19 @@ const saveMultipleFile = async (files) => {
             const fileExtension = path.extname(file.originalFilename).toLowerCase();
             const baseName = path.basename(file.originalFilename, fileExtension);
 
-            const compressedBuffer = await compressImage(inputBuffer, fileExtension);
-            if (!compressedBuffer) {
-                // console.warn(`Unsupported file format: ${file.originalFilename}`);
-                return null;
+            let bufferToUpload;
+
+            if (fileExtension === ".svg") {
+                // Bypass compression, upload original buffer for SVG
+                bufferToUpload = inputBuffer;
+            } else {
+                // Compress for other image types
+                const compressedBuffer = await compressImage(inputBuffer, fileExtension);
+                if (!compressedBuffer) {
+                    // console.warn(`Unsupported file format: ${file.originalFilename}`);
+                    return null;
+                }
+                bufferToUpload = compressedBuffer;
             }
 
             cloudinary.config({
@@ -58,28 +67,7 @@ const saveMultipleFile = async (files) => {
                 api_key: process.env.CLOUDINARY_API_KEY,
                 api_secret: process.env.CLOUDINARY_API_SECRET,
             });
-            const uploadResult = await cloudinary.uploader.upload_stream(
-                {
-                    folder: "uploads",
-                    public_id: baseName,
-                    resource_type: "image",
-                    overwrite: true,
-                    invalidate: true,
-                },
-                (error, result) => {
-                    if (error) {
-                        console.error("Cloudinary upload failed:", error);
-                        return null;
-                    }
-                    return {
-                        ...result,
-                        name: result.display_name + "." + result.format,
-                        contentType: file.mimetype,
-                    };
-                }
-            );
 
-            // The upload_stream call above needs to be handled properly with a promise wrapper
             return await new Promise((resolve, reject) => {
                 const uploadStream = cloudinary.uploader.upload_stream(
                     {
@@ -103,10 +91,8 @@ const saveMultipleFile = async (files) => {
                     }
                 );
 
-                // Pipe the compressed buffer into the Cloudinary stream
-                const stream = require("stream");
                 const bufferStream = new stream.PassThrough();
-                bufferStream.end(compressedBuffer);
+                bufferStream.end(bufferToUpload);
                 bufferStream.pipe(uploadStream);
             });
         } catch (err) {

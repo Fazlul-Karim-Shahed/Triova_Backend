@@ -5,7 +5,7 @@ const SettingsModel = model(
     new Schema(
         {
             coverPhoto: { type: Object, contentType: String, name: String },
-            bestSelling: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
+            bestSelling: [{ type: Schema.Types.ObjectId, ref: "Product" }],
         },
         { timestamps: true }
     )

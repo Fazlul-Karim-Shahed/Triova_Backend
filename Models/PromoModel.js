@@ -4,6 +4,7 @@ const PromoModel = model(
     "Promo",
     new Schema(
         {
+            isAffiliate: { type: Boolean, default: false, required: true },
             verified: { type: Boolean, default: false, required: true },
             code: { type: String, unique: true, require: true },
             description: { type: String, default: "" },

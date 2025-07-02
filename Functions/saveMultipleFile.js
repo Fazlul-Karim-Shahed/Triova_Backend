@@ -4,7 +4,7 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
-const MAX_SIZE_KB = 400;
+const MAX_SIZE_KB = 200;
 
 const compressImage = async (inputBuffer, fileExtension) => {
     let quality = 90;

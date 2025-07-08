@@ -1,189 +1,68 @@
-const fs = require("fs").promises;
 const path = require("path");
-const stream = require("stream");
 const cloudinary = require("cloudinary").v2;
-const { spawn } = require("child_process");
-const sharp = require("sharp");
+const fs = require("fs").promises;
+const stream = require("stream");
 
-const MAX_SIZE_KB = 200;
-const TIMEOUT_MS = 15000;
+const saveMultipleFile = async (files) => {
+    if (!files || files.length === 0) return [];
 
-// 🔁 Fallback inline compression using Sharp
-const fallbackCompress = async (inputBuffer, fileExtension) => {
-    console.log("⚠️ Fallback: Compressing inline with Sharp...");
-
-    let quality = 90;
-    let sharpInstance = sharp(inputBuffer);
-    const metadata = await sharpInstance.metadata();
-
-    if (metadata.width > 1500) {
-        sharpInstance = sharpInstance.resize({ width: 1500 });
-    }
-
-    while (quality >= 30) {
-        let buffer;
-
-        if (fileExtension === ".jpg" || fileExtension === ".jpeg") {
-            buffer = await sharpInstance.jpeg({ quality }).toBuffer();
-        } else if (fileExtension === ".png") {
-            buffer = await sharpInstance.png({ compressionLevel: 9 }).toBuffer();
-        } else if (fileExtension === ".webp") {
-            buffer = await sharpInstance.webp({ quality }).toBuffer();
-        } else {
-            return null;
-        }
-
-        if (buffer.length / 1024 < MAX_SIZE_KB) {
-            return buffer;
-        }
-
-        quality -= 10;
-    }
-
-    return sharpInstance.toBuffer();
-};
-
-// 📦 Compressor subprocess
-const runCompressor = (inputBuffer, ext) => {
-    return new Promise((resolve, reject) => {
-        const compressorPath = path.resolve(__dirname, "./compressor.js");
-        const child = spawn("node", [compressorPath, ext]);
-
-        const chunks = [];
-        const errors = [];
-
-        child.stdout.on("data", (data) => chunks.push(data));
-        child.stderr.on("data", (data) => errors.push(data.toString()));
-
-        child.on("error", (err) => {
-            console.error("❗ Compressor failed to spawn:", err);
-            reject(err);
-        });
-
-        child.on("close", (code) => {
-            if (code === 0) {
-                resolve(Buffer.concat(chunks));
-            } else {
-                console.error("❌ Compressor exited with code", code, errors.join(""));
-                reject(new Error(errors.join("")));
-            }
-        });
-
+    const uploads = files.map(async (file) => {
         try {
-            child.stdin.write(inputBuffer);
-            child.stdin.end();
-        } catch (err) {
-            console.error("❌ Failed writing to compressor stdin:", err);
-            reject(err);
-        }
-    });
-};
+            const inputBuffer = await fs.readFile(file.filepath);
+            const fileExtension = path.extname(file.originalFilename).toLowerCase();
+            const baseName = path.basename(file.originalFilename, fileExtension);
 
-// ⏳ Upload to Cloudinary with timeout
-const uploadWithTimeout = (buffer, baseName, file) => {
-    return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-            console.error("⏰ Upload timeout for:", file.originalFilename);
-            resolve(null);
-        }, TIMEOUT_MS);
+            cloudinary.config({
+                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+                api_key: process.env.CLOUDINARY_API_KEY,
+                api_secret: process.env.CLOUDINARY_API_SECRET,
+            });
 
-        const uploadStream = cloudinary.uploader.upload_stream(
-            {
+            const uploadOptions = {
                 folder: "uploads",
                 public_id: baseName,
                 resource_type: "image",
                 overwrite: true,
                 invalidate: true,
-            },
-            (error, result) => {
-                clearTimeout(timeout);
-                if (error) {
-                    console.error("❌ Upload failed:", error);
-                    resolve(null);
-                } else {
-                    console.log("✅ Upload successful:", result.secure_url);
-                    resolve({
-                        ...result,
-                        name: file.originalFilename,
-                        contentType: file.mimetype,
-                    });
-                }
-            }
-        );
+                use_filename: true,
+                unique_filename: false,
+            };
 
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(buffer);
-        bufferStream.pipe(uploadStream);
-    });
-};
-
-// 🔁 Retry wrapper
-const retry = async (fn, retries = 3, delay = 1000) => {
-    for (let i = 0; i < retries; i++) {
-        const result = await fn();
-        if (result) return result;
-        console.warn(`🔁 Retrying upload (${i + 1}/${retries})...`);
-        await new Promise((res) => setTimeout(res, delay));
-    }
-    return null;
-};
-
-// 📤 Main handler
-const saveMultipleFile = async (files) => {
-    if (!files || files.length === 0) {
-        console.log("⚠️ No files provided.");
-        return [];
-    }
-
-    console.log(`🚀 Starting upload for ${files.length} file(s).`);
-
-    cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
-
-    const results = [];
-
-    for (let index = 0; index < files.length; index++) {
-        const file = files[index];
-        try {
-            console.log(`📂 Reading file ${index + 1}: ${file.originalFilename}`);
-            const inputBuffer = await fs.readFile(file.filepath);
-            const fileExtension = path.extname(file.originalFilename).toLowerCase();
-            const baseName = path.basename(file.originalFilename, fileExtension);
-
-            let bufferToUpload;
-
-            if (fileExtension === ".svg") {
-                console.log("🖼️ SVG detected. Skipping compression.");
-                bufferToUpload = inputBuffer;
-            } else {
-                try {
-                    console.log("🧬 Running compression subprocess...");
-                    bufferToUpload = await runCompressor(inputBuffer, fileExtension);
-                } catch (err) {
-                    console.warn("⚠️ Compressor subprocess failed:", err.message);
-                    bufferToUpload = await fallbackCompress(inputBuffer, fileExtension);
-                }
+            // Only apply optimization if not SVG
+            if (fileExtension !== ".svg") {
+                uploadOptions.transformation = [
+                    {
+                        quality: "auto",
+                        fetch_format: "auto",
+                    },
+                ];
             }
 
-            const result = await retry(() => uploadWithTimeout(bufferToUpload, baseName, file));
+            return await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+                    if (error) {
+                        console.error("Upload failed:", error);
+                        resolve(null);
+                    } else {
+                        resolve({
+                            ...result,
+                            name: file.originalFilename,
+                            contentType: file.mimetype,
+                        });
+                    }
+                });
 
-            if (result) {
-                results.push(result);
-            } else {
-                console.error(`❌ Final upload failed: ${file.originalFilename}`);
-            }
-
-            console.log("💾 Memory usage:", process.memoryUsage());
+                const bufferStream = new stream.PassThrough();
+                bufferStream.end(inputBuffer);
+                bufferStream.pipe(uploadStream);
+            });
         } catch (err) {
-            console.error("❗ Error processing file:", file.originalFilename, err);
+            console.error("Upload error:", err);
+            return null;
         }
-    }
+    });
 
-    console.log("✅ All uploads attempted.");
-    return results;
+    return Promise.all(uploads);
 };
 
 module.exports.saveMultipleFile = saveMultipleFile;

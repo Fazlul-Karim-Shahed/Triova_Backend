@@ -7,16 +7,23 @@ const stream = require("stream");
 const MAX_SIZE_KB = 200;
 
 const compressImage = async (inputBuffer, fileExtension) => {
+    console.log("Starting image compression...");
+
     let quality = 90;
     let sharpInstance = sharp(inputBuffer);
 
     const metadata = await sharpInstance.metadata();
+    console.log("Original image metadata:", metadata);
+
     if (metadata.width > 1500) {
+        console.log("Resizing image to width 1500px...");
         sharpInstance = sharpInstance.resize({ width: 1500 });
     }
 
     while (quality >= 30) {
         let buffer;
+        console.log(`Trying compression with quality: ${quality}`);
+
         if (fileExtension === ".jpg" || fileExtension === ".jpeg") {
             buffer = await sharpInstance.jpeg({ quality }).toBuffer();
         } else if (fileExtension === ".png") {
@@ -24,26 +31,35 @@ const compressImage = async (inputBuffer, fileExtension) => {
         } else if (fileExtension === ".webp") {
             buffer = await sharpInstance.webp({ quality }).toBuffer();
         } else {
-            // Unsupported formats return null here
-            // console.warn(`Unsupported file format: ${file.originalFilename}`);
+            console.warn(`Unsupported file format: ${fileExtension}`);
             return null;
         }
 
+        console.log(`Compressed size: ${(buffer.length / 1024).toFixed(2)} KB`);
+
         if (buffer.length / 1024 < MAX_SIZE_KB) {
+            console.log("Image is under size limit, returning compressed buffer.");
             return buffer;
         }
 
         quality -= 10;
     }
 
+    console.log("Returning last attempted buffer, size still over limit.");
     return sharpInstance.toBuffer();
 };
 
 const saveMultipleFile = async (files) => {
-    if (!files || files.length === 0) return [];
+    if (!files || files.length === 0) {
+        console.log("No files provided.");
+        return [];
+    }
 
-    const uploads = files.map(async (file) => {
+    console.log(`Starting upload for ${files.length} file(s).`);
+
+    const uploads = files.map(async (file, index) => {
         try {
+            console.log(`Reading file ${index + 1}: ${file.originalFilename}`);
             const inputBuffer = await fs.readFile(file.filepath);
             const fileExtension = path.extname(file.originalFilename).toLowerCase();
             const baseName = path.basename(file.originalFilename, fileExtension);
@@ -51,18 +67,19 @@ const saveMultipleFile = async (files) => {
             let bufferToUpload;
 
             if (fileExtension === ".svg") {
-                // Bypass compression, upload original buffer for SVG
+                console.log("SVG file detected. Skipping compression.");
                 bufferToUpload = inputBuffer;
             } else {
-                // Compress for other image types
+                console.log("Compressing image...");
                 const compressedBuffer = await compressImage(inputBuffer, fileExtension);
                 if (!compressedBuffer) {
-                    console.warn(`Unsupported file format: ${file.originalFilename}`);
+                    console.warn(`Skipping unsupported format: ${file.originalFilename}`);
                     return null;
                 }
                 bufferToUpload = compressedBuffer;
             }
 
+            console.log("Configuring Cloudinary...");
             cloudinary.config({
                 cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
                 api_key: process.env.CLOUDINARY_API_KEY,
@@ -70,8 +87,7 @@ const saveMultipleFile = async (files) => {
             });
 
             return await new Promise((resolve, reject) => {
-
-                console.log(`Processing image: ${file.originalFilename}`);
+                console.log(`Uploading file to Cloudinary: ${file.originalFilename}`);
 
                 const uploadStream = cloudinary.uploader.upload_stream(
                     {
@@ -86,7 +102,7 @@ const saveMultipleFile = async (files) => {
                             console.error("Upload failed:", error);
                             resolve(null);
                         } else {
-                            console.log("Upload successful:", result);
+                            console.log("Upload successful:", result.secure_url);
                             resolve({
                                 ...result,
                                 name: file.originalFilename,
@@ -106,7 +122,9 @@ const saveMultipleFile = async (files) => {
         }
     });
 
-    return Promise.all(uploads);
+    const results = await Promise.all(uploads);
+    console.log("All uploads completed.");
+    return results;
 };
 
 module.exports.saveMultipleFile = saveMultipleFile;

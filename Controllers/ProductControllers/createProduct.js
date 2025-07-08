@@ -37,6 +37,7 @@ const createProduct = async (req, res) => {
 
         let imageList = files["imageList[]"].length > 0 ? saveMultipleFile(files["imageList[]"]) : null;
 
+        console.log("Image list before", imageList);
         
 
         if (imageList) {

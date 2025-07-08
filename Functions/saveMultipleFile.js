@@ -79,7 +79,7 @@ const saveMultipleFile = async (files) => {
                     },
                     (error, result) => {
                         if (error) {
-                            // console.error("Upload failed:", error);
+                            console.error("Upload failed:", error);
                             resolve(null);
                         } else {
                             resolve({

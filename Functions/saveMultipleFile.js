@@ -5,6 +5,7 @@ const fs = require("fs").promises;
 const stream = require("stream");
 
 const MAX_SIZE_KB = 200;
+const TIMEOUT_MS = 15000;
 
 const compressImage = async (inputBuffer, fileExtension) => {
     console.log("Starting image compression...");
@@ -49,17 +50,76 @@ const compressImage = async (inputBuffer, fileExtension) => {
     return sharpInstance.toBuffer();
 };
 
+const uploadWithTimeout = (buffer, baseName, file) => {
+    return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+            console.error("⏰ Upload timeout for:", file.originalFilename);
+            resolve(null);
+        }, TIMEOUT_MS);
+
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                folder: "uploads",
+                public_id: baseName,
+                resource_type: "image",
+                overwrite: true,
+                invalidate: true,
+            },
+            (error, result) => {
+                clearTimeout(timeout);
+                if (error) {
+                    console.error("❌ Upload failed:", error);
+                    resolve(null);
+                } else {
+                    console.log("✅ Upload successful:", result.secure_url);
+                    resolve({
+                        ...result,
+                        name: file.originalFilename,
+                        contentType: file.mimetype,
+                    });
+                }
+            }
+        );
+
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(buffer);
+        bufferStream.pipe(uploadStream);
+    });
+};
+
+const retry = async (fn, retries = 3, delay = 1000) => {
+    for (let i = 0; i < retries; i++) {
+        const result = await fn();
+        if (result) return result;
+        console.warn(`🔁 Retrying upload (${i + 1}/${retries})...`);
+        await new Promise((res) => setTimeout(res, delay));
+    }
+    return null;
+};
+
 const saveMultipleFile = async (files) => {
     if (!files || files.length === 0) {
         console.log("No files provided.");
         return [];
     }
 
-    console.log(`Starting upload for ${files.length} file(s).`);
+    console.log(`🚀 Starting upload for ${files.length} file(s).`);
+
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+
+    console.log("🔧 Cloudinary config:", {
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET ? "***" : null,
+    });
 
     const uploads = files.map(async (file, index) => {
         try {
-            console.log(`Reading file ${index + 1}: ${file.originalFilename}`);
+            console.log(`📄 Reading file ${index + 1}: ${file.originalFilename}`);
             const inputBuffer = await fs.readFile(file.filepath);
             const fileExtension = path.extname(file.originalFilename).toLowerCase();
             const baseName = path.basename(file.originalFilename, fileExtension);
@@ -67,64 +127,34 @@ const saveMultipleFile = async (files) => {
             let bufferToUpload;
 
             if (fileExtension === ".svg") {
-                console.log("SVG file detected. Skipping compression.");
+                console.log("🖼️ SVG file detected. Skipping compression.");
                 bufferToUpload = inputBuffer;
             } else {
-                console.log("Compressing image...");
+                console.log("🗜️ Compressing image...");
                 const compressedBuffer = await compressImage(inputBuffer, fileExtension);
                 if (!compressedBuffer) {
-                    console.warn(`Skipping unsupported format: ${file.originalFilename}`);
+                    console.warn(`⚠️ Skipping unsupported format: ${file.originalFilename}`);
                     return null;
                 }
                 bufferToUpload = compressedBuffer;
             }
 
-            console.log("Configuring Cloudinary...");
-            cloudinary.config({
-                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                api_key: process.env.CLOUDINARY_API_KEY,
-                api_secret: process.env.CLOUDINARY_API_SECRET,
-            });
+            const result = await retry(() => uploadWithTimeout(bufferToUpload, baseName, file));
 
-            return await new Promise((resolve, reject) => {
-                console.log(`Uploading file to Cloudinary: ${file.originalFilename}`);
+            if (!result) {
+                console.error(`❌ Final upload failed: ${file.originalFilename}`);
+            }
 
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    {
-                        folder: "uploads",
-                        public_id: baseName,
-                        resource_type: "image",
-                        overwrite: true,
-                        invalidate: true,
-                    },
-                    (error, result) => {
-                        if (error) {
-                            console.error("Upload failed:", error);
-                            resolve(null);
-                        } else {
-                            console.log("Upload successful:", result.secure_url);
-                            resolve({
-                                ...result,
-                                name: file.originalFilename,
-                                contentType: file.mimetype,
-                            });
-                        }
-                    }
-                );
-
-                const bufferStream = new stream.PassThrough();
-                bufferStream.end(bufferToUpload);
-                bufferStream.pipe(uploadStream);
-            });
+            return result;
         } catch (err) {
-            console.error("Compression or upload error:", err);
+            console.error("❗ Compression or upload error:", err);
             return null;
         }
     });
 
     const results = await Promise.all(uploads);
-    console.log("All uploads completed.");
-    return results;
+    console.log("✅ All uploads attempted.");
+    return results.filter(Boolean);
 };
 
 module.exports.saveMultipleFile = saveMultipleFile;

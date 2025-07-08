@@ -92,8 +92,8 @@ app.get("/", (req, res) => res.sendFile(path.resolve("./Server.html")));
 
 // Express async error handlers
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send("Something went wrong!");
+    console.error("Server error: ", err);
+    res.status(500).send(err.message);
 });
 
 // ------------ Server ------------ //

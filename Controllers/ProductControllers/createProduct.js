@@ -9,6 +9,9 @@ const { saveAndGetFile } = require("../../Functions/saveAndGetFile");
 const { default: mongoose } = require("mongoose");
 
 const createProduct = async (req, res) => {
+
+    console.log("Creating product...");
+
     const form = new formidable.IncomingForm();
     form.keepExtensions = true;
 
@@ -37,6 +40,7 @@ const createProduct = async (req, res) => {
                     product
                         .save()
                         .then((product) => {
+                            console.log("Product: ", product);
                             res.send({ message: "product created successfully", error: false, data: product });
                         })
                         .catch((err) => {
@@ -45,9 +49,11 @@ const createProduct = async (req, res) => {
                         });
                 })
                 .catch((err) => {
+                    console.log("Image error", err);
                     res.send({ message: err.message, error: true });
                 });
         } else {
+            console.log("Product not created. Image is required");
             res.send({ message: "Product not created. Image is required", error: true });
         }
     });

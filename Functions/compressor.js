@@ -6,8 +6,8 @@ const MAX_SIZE_KB = 200;
 const compressImage = async (inputBuffer, fileExtension) => {
     let quality = 90;
     let sharpInstance = sharp(inputBuffer);
-
     const metadata = await sharpInstance.metadata();
+
     if (metadata.width > 1500) {
         sharpInstance = sharpInstance.resize({ width: 1500 });
     }
@@ -36,6 +36,8 @@ const compressImage = async (inputBuffer, fileExtension) => {
 };
 
 const run = async () => {
+    console.log("📦 Compressor subprocess started:", process.argv[2]);
+
     const chunks = [];
     for await (const chunk of process.stdin) {
         chunks.push(chunk);

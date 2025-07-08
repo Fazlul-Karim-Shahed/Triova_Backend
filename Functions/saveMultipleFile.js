@@ -3,6 +3,8 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
+const MAX_FILE_SIZE_KB = 300;
+
 const saveMultipleFile = async (files) => {
     if (!files || files.length === 0) return [];
 
@@ -28,12 +30,14 @@ const saveMultipleFile = async (files) => {
                 unique_filename: false,
             };
 
-            // Only apply optimization if not SVG
+            // Skip optimization for SVG
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation = [
                     {
-                        quality: "auto",
-                        fetch_format: "auto",
+                        width: 1200, // Resize only if image is wider than 1200px
+                        crop: "limit", // Prevent upscaling
+                        quality: "auto", // Best visual quality with smart compression
+                        fetch_format: "auto", // Use modern format like WebP/AVIF
                     },
                 ];
             }
@@ -42,14 +46,20 @@ const saveMultipleFile = async (files) => {
                 const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
                     if (error) {
                         console.error("Upload failed:", error);
-                        resolve(null);
-                    } else {
-                        resolve({
-                            ...result,
-                            name: file.originalFilename,
-                            contentType: file.mimetype,
-                        });
+                        return resolve(null);
                     }
+
+                    const sizeKB = result.bytes / 1024;
+                    if (sizeKB > MAX_FILE_SIZE_KB) {
+                        console.warn(`Skipped ${file.originalFilename} — size too large after upload: ${Math.round(sizeKB)} KB`);
+                        return resolve(null);
+                    }
+
+                    return resolve({
+                        ...result,
+                        name: file.originalFilename,
+                        contentType: file.mimetype,
+                    });
                 });
 
                 const bufferStream = new stream.PassThrough();

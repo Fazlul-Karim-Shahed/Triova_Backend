@@ -40,7 +40,7 @@ const createProduct = async (req, res) => {
                             res.send({ message: "product created successfully", error: false, data: product });
                         })
                         .catch((err) => {
-                            //console.log(err);
+                            console.log(err);
                             res.send({ message: err.message, error: true });
                         });
                 })

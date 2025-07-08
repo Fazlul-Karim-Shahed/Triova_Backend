@@ -25,6 +25,7 @@ const compressImage = async (inputBuffer, fileExtension) => {
             buffer = await sharpInstance.webp({ quality }).toBuffer();
         } else {
             // Unsupported formats return null here
+            // console.warn(`Unsupported file format: ${file.originalFilename}`);
             return null;
         }
 
@@ -56,7 +57,7 @@ const saveMultipleFile = async (files) => {
                 // Compress for other image types
                 const compressedBuffer = await compressImage(inputBuffer, fileExtension);
                 if (!compressedBuffer) {
-                    // console.warn(`Unsupported file format: ${file.originalFilename}`);
+                    console.warn(`Unsupported file format: ${file.originalFilename}`);
                     return null;
                 }
                 bufferToUpload = compressedBuffer;
@@ -69,6 +70,9 @@ const saveMultipleFile = async (files) => {
             });
 
             return await new Promise((resolve, reject) => {
+
+                console.log(`Processing image: ${file.originalFilename}`);
+
                 const uploadStream = cloudinary.uploader.upload_stream(
                     {
                         folder: "uploads",
@@ -82,6 +86,7 @@ const saveMultipleFile = async (files) => {
                             console.error("Upload failed:", error);
                             resolve(null);
                         } else {
+                            console.log("Upload successful:", result);
                             resolve({
                                 ...result,
                                 name: file.originalFilename,

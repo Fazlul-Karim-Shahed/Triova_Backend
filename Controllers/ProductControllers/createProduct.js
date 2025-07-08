@@ -32,11 +32,19 @@ const createProduct = async (req, res) => {
         let product = new ProductModel(fields);
         product.subBrandId = fields.subBrandId ? mongoose.Types.ObjectId(fields.subBrandId) : null;
 
+        console.log("Before save without image", product);
+
+
         let imageList = files["imageList[]"].length > 0 ? saveMultipleFile(files["imageList[]"]) : null;
+
+        
 
         if (imageList) {
             imageList
                 .then((data) => {
+
+                    console.log("Image list", data);
+
                     product
                         .save()
                         .then((product) => {

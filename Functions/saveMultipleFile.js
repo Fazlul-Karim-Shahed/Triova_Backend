@@ -7,23 +7,24 @@ const stream = require("stream");
 const MAX_SIZE_KB = 200;
 const TIMEOUT_MS = 15000;
 
+// Compress image to stay under MAX_SIZE_KB
 const compressImage = async (inputBuffer, fileExtension) => {
-    console.log("Starting image compression...");
+    console.log("🗜️ Starting image compression...");
 
     let quality = 90;
     let sharpInstance = sharp(inputBuffer);
 
     const metadata = await sharpInstance.metadata();
-    console.log("Original image metadata:", metadata);
+    console.log("📊 Original image metadata:", metadata);
 
     if (metadata.width > 1500) {
-        console.log("Resizing image to width 1500px...");
+        console.log("📐 Resizing image to 1500px wide...");
         sharpInstance = sharpInstance.resize({ width: 1500 });
     }
 
     while (quality >= 30) {
         let buffer;
-        console.log(`Trying compression with quality: ${quality}`);
+        console.log(`🧪 Trying compression with quality: ${quality}`);
 
         if (fileExtension === ".jpg" || fileExtension === ".jpeg") {
             buffer = await sharpInstance.jpeg({ quality }).toBuffer();
@@ -32,24 +33,25 @@ const compressImage = async (inputBuffer, fileExtension) => {
         } else if (fileExtension === ".webp") {
             buffer = await sharpInstance.webp({ quality }).toBuffer();
         } else {
-            console.warn(`Unsupported file format: ${fileExtension}`);
+            console.warn(`⚠️ Unsupported file format: ${fileExtension}`);
             return null;
         }
 
-        console.log(`Compressed size: ${(buffer.length / 1024).toFixed(2)} KB`);
+        console.log(`📉 Compressed size: ${(buffer.length / 1024).toFixed(2)} KB`);
 
         if (buffer.length / 1024 < MAX_SIZE_KB) {
-            console.log("Image is under size limit, returning compressed buffer.");
+            console.log("✅ Compression successful and under size limit.");
             return buffer;
         }
 
         quality -= 10;
     }
 
-    console.log("Returning last attempted buffer, size still over limit.");
+    console.log("⚠️ Compression did not reduce enough. Returning last buffer.");
     return sharpInstance.toBuffer();
 };
 
+// Upload with timeout
 const uploadWithTimeout = (buffer, baseName, file) => {
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -87,6 +89,7 @@ const uploadWithTimeout = (buffer, baseName, file) => {
     });
 };
 
+// Retry wrapper
 const retry = async (fn, retries = 3, delay = 1000) => {
     for (let i = 0; i < retries; i++) {
         const result = await fn();
@@ -97,9 +100,10 @@ const retry = async (fn, retries = 3, delay = 1000) => {
     return null;
 };
 
+// Main file handler
 const saveMultipleFile = async (files) => {
     if (!files || files.length === 0) {
-        console.log("No files provided.");
+        console.log("⚠️ No files provided.");
         return [];
     }
 
@@ -117,9 +121,12 @@ const saveMultipleFile = async (files) => {
         api_secret: process.env.CLOUDINARY_API_SECRET ? "***" : null,
     });
 
-    const uploads = files.map(async (file, index) => {
+    const results = [];
+
+    for (let index = 0; index < files.length; index++) {
+        const file = files[index];
         try {
-            console.log(`📄 Reading file ${index + 1}: ${file.originalFilename}`);
+            console.log(`📂 Reading file ${index + 1}: ${file.originalFilename}`);
             const inputBuffer = await fs.readFile(file.filepath);
             const fileExtension = path.extname(file.originalFilename).toLowerCase();
             const baseName = path.basename(file.originalFilename, fileExtension);
@@ -127,34 +134,34 @@ const saveMultipleFile = async (files) => {
             let bufferToUpload;
 
             if (fileExtension === ".svg") {
-                console.log("🖼️ SVG file detected. Skipping compression.");
+                console.log("🖼️ SVG detected, skipping compression.");
                 bufferToUpload = inputBuffer;
             } else {
-                console.log("🗜️ Compressing image...");
+                console.log("🧬 Compressing...");
                 const compressedBuffer = await compressImage(inputBuffer, fileExtension);
                 if (!compressedBuffer) {
-                    console.warn(`⚠️ Skipping unsupported format: ${file.originalFilename}`);
-                    return null;
+                    console.warn(`❌ Skipping unsupported format: ${file.originalFilename}`);
+                    continue;
                 }
                 bufferToUpload = compressedBuffer;
             }
 
             const result = await retry(() => uploadWithTimeout(bufferToUpload, baseName, file));
 
-            if (!result) {
+            if (result) {
+                results.push(result);
+            } else {
                 console.error(`❌ Final upload failed: ${file.originalFilename}`);
             }
 
-            return result;
+            console.log("💾 Memory usage:", process.memoryUsage());
         } catch (err) {
-            console.error("❗ Compression or upload error:", err);
-            return null;
+            console.error("❗ Error processing file:", file.originalFilename, err);
         }
-    });
+    }
 
-    const results = await Promise.all(uploads);
     console.log("✅ All uploads attempted.");
-    return results.filter(Boolean);
+    return results;
 };
 
 module.exports.saveMultipleFile = saveMultipleFile;

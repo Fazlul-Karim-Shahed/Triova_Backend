@@ -7,8 +7,9 @@ const sharp = require("sharp");
 
 const MAX_SIZE_KB = 200;
 const TIMEOUT_MS = 15000;
+const MAX_CONCURRENT_UPLOADS = 3; // Adjust concurrency as needed
 
-// 🔁 Fallback inline compression using Sharp
+// Fallback inline compression using Sharp
 const fallbackCompress = async (inputBuffer, fileExtension) => {
     console.log("⚠️ Fallback: Compressing inline with Sharp...");
 
@@ -17,6 +18,7 @@ const fallbackCompress = async (inputBuffer, fileExtension) => {
     const metadata = await sharpInstance.metadata();
 
     if (metadata.width > 1500) {
+        console.log(`📐 Resizing image to 1500px wide...`);
         sharpInstance = sharpInstance.resize({ width: 1500 });
     }
 
@@ -30,20 +32,26 @@ const fallbackCompress = async (inputBuffer, fileExtension) => {
         } else if (fileExtension === ".webp") {
             buffer = await sharpInstance.webp({ quality }).toBuffer();
         } else {
+            console.warn("Unsupported file extension for compression:", fileExtension);
             return null;
         }
 
+        console.log(`🧪 Trying compression with quality: ${quality}`);
+        console.log(`📉 Compressed size: ${(buffer.length / 1024).toFixed(2)} KB`);
+
         if (buffer.length / 1024 < MAX_SIZE_KB) {
+            console.log("✅ Compression successful and under size limit.");
             return buffer;
         }
 
         quality -= 10;
     }
 
+    console.log("⚠️ Compression could not reduce size enough, returning last buffer");
     return sharpInstance.toBuffer();
 };
 
-// 📦 Compressor subprocess
+// Compressor subprocess
 const runCompressor = (inputBuffer, ext) => {
     return new Promise((resolve, reject) => {
         const compressorPath = path.resolve(__dirname, "./compressor.js");
@@ -79,7 +87,7 @@ const runCompressor = (inputBuffer, ext) => {
     });
 };
 
-// ⏳ Upload to Cloudinary with timeout
+// Upload to Cloudinary with timeout
 const uploadWithTimeout = (buffer, baseName, file) => {
     return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -117,7 +125,7 @@ const uploadWithTimeout = (buffer, baseName, file) => {
     });
 };
 
-// 🔁 Retry wrapper
+// Retry wrapper for uploads
 const retry = async (fn, retries = 3, delay = 1000) => {
     for (let i = 0; i < retries; i++) {
         const result = await fn();
@@ -128,14 +136,69 @@ const retry = async (fn, retries = 3, delay = 1000) => {
     return null;
 };
 
-// 📤 Main handler
+// Concurrency pool helper
+async function asyncPool(poolLimit, array, iteratorFn) {
+    const ret = [];
+    const executing = [];
+
+    for (const item of array) {
+        const p = Promise.resolve().then(() => iteratorFn(item));
+        ret.push(p);
+
+        if (poolLimit <= array.length) {
+            const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+            executing.push(e);
+            if (executing.length >= poolLimit) {
+                await Promise.race(executing);
+            }
+        }
+    }
+    return Promise.all(ret);
+}
+
+// Worker for processing each file
+async function processFile(file) {
+    try {
+        console.log(`📂 Reading file: ${file.originalFilename}`);
+        const inputBuffer = await fs.readFile(file.filepath);
+        const fileExtension = path.extname(file.originalFilename).toLowerCase();
+        const baseName = path.basename(file.originalFilename, fileExtension);
+
+        let bufferToUpload;
+
+        if (fileExtension === ".svg") {
+            console.log("🖼️ SVG detected. Skipping compression.");
+            bufferToUpload = inputBuffer;
+        } else {
+            try {
+                console.log("🧬 Running compression subprocess...");
+                bufferToUpload = await runCompressor(inputBuffer, fileExtension);
+            } catch (err) {
+                console.warn("⚠️ Compressor subprocess failed:", err.message);
+                bufferToUpload = await fallbackCompress(inputBuffer, fileExtension);
+            }
+        }
+
+        const result = await retry(() => uploadWithTimeout(bufferToUpload, baseName, file));
+        if (!result) {
+            console.error(`❌ Final upload failed: ${file.originalFilename}`);
+            return null;
+        }
+        console.log(`✅ Upload successful: ${file.originalFilename}`);
+        console.log("💾 Memory usage:", process.memoryUsage());
+        return result;
+    } catch (err) {
+        console.error("❗ Error processing file:", file.originalFilename, err);
+        return null;
+    }
+}
+
+// Main export
 const saveMultipleFile = async (files) => {
     if (!files || files.length === 0) {
         console.log("⚠️ No files provided.");
         return [];
     }
-
-    console.log(`🚀 Starting upload for ${files.length} file(s).`);
 
     cloudinary.config({
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -143,47 +206,12 @@ const saveMultipleFile = async (files) => {
         api_secret: process.env.CLOUDINARY_API_SECRET,
     });
 
-    const results = [];
+    console.log(`🚀 Starting upload for ${files.length} file(s) with concurrency = ${MAX_CONCURRENT_UPLOADS}`);
 
-    for (let index = 0; index < files.length; index++) {
-        const file = files[index];
-        try {
-            console.log(`📂 Reading file ${index + 1}: ${file.originalFilename}`);
-            const inputBuffer = await fs.readFile(file.filepath);
-            const fileExtension = path.extname(file.originalFilename).toLowerCase();
-            const baseName = path.basename(file.originalFilename, fileExtension);
-
-            let bufferToUpload;
-
-            if (fileExtension === ".svg") {
-                console.log("🖼️ SVG detected. Skipping compression.");
-                bufferToUpload = inputBuffer;
-            } else {
-                try {
-                    console.log("🧬 Running compression subprocess...");
-                    bufferToUpload = await runCompressor(inputBuffer, fileExtension);
-                } catch (err) {
-                    console.warn("⚠️ Compressor subprocess failed:", err.message);
-                    bufferToUpload = await fallbackCompress(inputBuffer, fileExtension);
-                }
-            }
-
-            const result = await retry(() => uploadWithTimeout(bufferToUpload, baseName, file));
-
-            if (result) {
-                results.push(result);
-            } else {
-                console.error(`❌ Final upload failed: ${file.originalFilename}`);
-            }
-
-            console.log("💾 Memory usage:", process.memoryUsage());
-        } catch (err) {
-            console.error("❗ Error processing file:", file.originalFilename, err);
-        }
-    }
+    const results = await asyncPool(MAX_CONCURRENT_UPLOADS, files, processFile);
 
     console.log("✅ All uploads attempted.");
-    return results;
+    return results.filter(Boolean);
 };
 
 module.exports.saveMultipleFile = saveMultipleFile;

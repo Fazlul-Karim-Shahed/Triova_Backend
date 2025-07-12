@@ -52,7 +52,7 @@ const syncProductsToAlgolia = async () => {
         const objects = products.map((p) => ({
             objectID: p._id.toString(),
             name: p.name,
-            tags: Array.isArray(p.tags) ? p.tags.slice(0, 5) : [],
+            tags: [...p.tags],
             description: p.description?.substring(0, 300), // Truncate description
             brandId: p.brandId?.toString(),
             categoryId: p.categoryId?.toString(),
@@ -72,7 +72,6 @@ const syncProductsToAlgolia = async () => {
         console.error("❌ Failed to sync products to Algolia:", error.message);
     }
 };
-
 
 // algolia end
 
@@ -96,7 +95,7 @@ mongoose
     })
     .then((data) => {
         console.log("Successfully connected to Triova MongoDB Remote Server!");
-        // syncProductsToAlgolia(); // ✅ Sync here
+        syncProductsToAlgolia(); // ✅ Sync here
     })
     .catch((data) => {
         console.log("Something went wrong with MongoDB Server");

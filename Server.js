@@ -95,7 +95,7 @@ mongoose
     })
     .then((data) => {
         console.log("Successfully connected to Triova MongoDB Remote Server!");
-        syncProductsToAlgolia(); // ✅ Sync here
+        // syncProductsToAlgolia(); // ✅ Sync here
     })
     .catch((data) => {
         console.log("Something went wrong with MongoDB Server");

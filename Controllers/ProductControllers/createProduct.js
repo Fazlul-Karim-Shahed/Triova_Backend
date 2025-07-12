@@ -12,10 +12,6 @@ const { saveMultipleFile } = require("../../Functions/saveMultipleFile");
 
 const algoliasearch = require("algoliasearch");
 
-// ✅ Debug logs to confirm env vars are loaded
-console.log("ALGOLIA_APP_ID in createProduct:", process.env.ALGOLIA_APP_ID);
-console.log("ALGOLIA_API_KEY in createProduct:", process.env.ALGOLIA_API_KEY);
-
 const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
 const algoliaIndex = algoliaClient.initIndex("products");
 

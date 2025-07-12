@@ -13,9 +13,6 @@ const { saveMultipleFile } = require("../../Functions/saveMultipleFile");
 // ✅ Algolia Setup
 const algoliasearch = require("algoliasearch");
 
-console.log("ALGOLIA_APP_ID in updateProduct:", process.env.ALGOLIA_APP_ID);
-console.log("ALGOLIA_API_KEY in updateProduct:", process.env.ALGOLIA_API_KEY);
-
 const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
 const algoliaIndex = algoliaClient.initIndex("products");
 
@@ -69,7 +66,7 @@ const updateProduct = async (req, res) => {
                 };
 
                 await algoliaIndex.saveObject(algoliaObject);
-                console.log("Updated in Algolia:", updated._id);
+                // console.log("Updated in Algolia:", updated._id);
 
                 res.send({
                     message: "Product updated successfully",

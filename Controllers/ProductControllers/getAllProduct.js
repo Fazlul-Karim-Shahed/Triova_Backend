@@ -13,7 +13,6 @@ const algoliaIndex = algoliaClient.initIndex("products");
 
 const getAllProduct = async (req, res) => {
     try {
-
         let searchParams = { ...req.body };
 
         if (searchParams.max || searchParams.min) searchParams.sellingPrice = {};
@@ -95,7 +94,6 @@ const getAllProduct = async (req, res) => {
 
             baseFilter._id = { $in: ids };
         }
-
 
         allProducts = await ProductModel.find(baseFilter).populate(["batchId", "departmentId", "categoryId", "subCategoryId", "brandId", "subBrandId"]).lean();
 

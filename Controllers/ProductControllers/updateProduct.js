@@ -5,7 +5,12 @@ const formidable = require("formidable");
 const { formDataToObj } = require("../../Functions/formDataToObj");
 const { cleanObject } = require("../../Functions/cleanObject");
 const { saveMultipleFile } = require("../../Functions/saveMultipleFile");
-const { saveAndGetFile } = require("../../Functions/saveAndGetFile");
+const { default: mongoose } = require("mongoose");
+
+// ✅ Algolia Setup
+const algoliasearch = require("algoliasearch");
+const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
+const algoliaIndex = algoliaClient.initIndex("products");
 
 const updateProduct = async (req, res) => {
     const form = new formidable.IncomingForm();
@@ -14,56 +19,67 @@ const updateProduct = async (req, res) => {
 
     let product = await ProductModel.findOne({ _id: req.params.productId });
 
-    form.parse(req, (err, fields, files) => {
-        if (err) {
-            return res.status(500).send(err);
-        }
+    if (!product) {
+        return res.status(404).send({ message: "Product not found", error: true });
+    }
+
+    form.parse(req, async (err, fields, files) => {
+        if (err) return res.status(500).send(err);
 
         imageStatus = fields.image && fields.image[0] === "none" ? fields.image[0] : "";
 
         fields = cleanObject(formDataToObj(fields));
-
         Object.assign(product, fields);
 
-        product.sizes = fields.sizes ? fields.sizes : [];
-        product.colors = fields.colors ? fields.colors : [];
+        product.sizes = fields.sizes || [];
+        product.colors = fields.colors || [];
         product.subBrandId = fields.subBrandId ? mongoose.Types.ObjectId(fields.subBrandId) : null;
-
-        let imageList = files && files["imageList[]"] && files["imageList[]"].length > 0 ? saveMultipleFile(files["imageList[]"]) : null;
-        //console.log("Image Status", imageStatus);
 
         if (imageStatus === "none") {
             product.image = [];
         }
 
+        let imageList = files && files["imageList[]"] && files["imageList[]"].length > 0 ? saveMultipleFile(files["imageList[]"]) : null;
+
+        const saveAndIndex = async () => {
+            try {
+                const updated = await product.save();
+
+                // ✅ Update Algolia
+                const algoliaObject = {
+                    objectID: updated._id.toString(),
+                    _id: updated._id.toString(),
+                    name: updated.name,
+                    tags: updated.tags,
+                    description: updated.description,
+                    brandId: updated.brandId?.toString(),
+                    categoryId: updated.categoryId?.toString(),
+                    departmentId: updated.departmentId?.toString(),
+                };
+
+                await algoliaIndex.saveObject(algoliaObject);
+
+                res.send({
+                    message: "Product updated successfully",
+                    error: false,
+                    data: updated,
+                });
+            } catch (err) {
+                res.send({ message: err.message, error: true });
+            }
+        };
+
         if (imageList) {
             imageList
                 .then((data) => {
-
-                    console.log(data)
-
-                    product
-                        .save()
-                        .then((product) => {
-                            res.send({ message: "product update successfully", error: false, data: product });
-                        })
-                        .catch((err) => {
-                            res.send({ message: err.message, error: true });
-                        });
+                    product.image = data;
+                    saveAndIndex();
                 })
                 .catch((err) => {
                     res.send({ message: err.message, error: true });
                 });
         } else {
-            product
-                .save()
-                .then((product) => {
-                    res.send({ message: "product update successfully", error: false, data: product });
-                })
-                .catch((err) => {
-                    //console.log("An error while update product", err);
-                    res.send({ message: err.message, error: true });
-                });
+            saveAndIndex();
         }
     });
 };

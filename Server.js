@@ -38,6 +38,44 @@ app.options("*", cors({ origin: "*", optionsSuccessStatus: 200 }));
 app.use(cors({ origin: "*", optionsSuccessStatus: 200 }));
 app.use(compression());
 
+// Algolia start
+
+const algoliasearch = require("algoliasearch");
+const { ProductModel } = require("./Models/ProductModel"); // Ensure correct path
+
+const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
+const algoliaIndex = algoliaClient.initIndex("products");
+
+const syncProductsToAlgolia = async () => {
+    try {
+        const products = await ProductModel.find().lean();
+        const objects = products.map((p) => ({
+            objectID: p._id.toString(),
+            name: p.name,
+            tags: Array.isArray(p.tags) ? p.tags.slice(0, 5) : [],
+            description: p.description?.substring(0, 300), // Truncate description
+            brandId: p.brandId?.toString(),
+            categoryId: p.categoryId?.toString(),
+            departmentId: p.departmentId?.toString(),
+        }));
+
+        const filteredObjects = objects.filter((obj) => {
+            const size = Buffer.byteLength(JSON.stringify(obj));
+            return size <= 10000;
+        });
+
+        console.log(`🧹 Filtered out ${objects.length - filteredObjects.length} oversized records`);
+
+        const res = await algoliaIndex.saveObjects(filteredObjects);
+        console.log(`✅ Synced ${filteredObjects.length} products to Algolia.`);
+    } catch (error) {
+        console.error("❌ Failed to sync products to Algolia:", error.message);
+    }
+};
+
+
+// algolia end
+
 // Local DB
 // mongoose.connect(process.env.MONGODB_LOCAL + '/Triova')
 //   .then(data => console.log('Successfully connected to Triova MongoDB Local Server.'))
@@ -56,7 +94,10 @@ mongoose
         useNewUrlParser: true,
         useUnifiedTopology: true,
     })
-    .then((data) => console.log("Successfully connected to Triova MongoDB Remote Server!"))
+    .then((data) => {
+        console.log("Successfully connected to Triova MongoDB Remote Server!");
+        // syncProductsToAlgolia(); // ✅ Sync here
+    })
     .catch((data) => {
         console.log("Something went wrong with MongoDB Server");
         console.log(data);

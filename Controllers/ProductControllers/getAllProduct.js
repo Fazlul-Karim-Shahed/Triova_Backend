@@ -6,69 +6,61 @@ const { SubCategoryModel } = require("../../Models/SubCategoryModel");
 const { SubBrandModel } = require("../../Models/SubBrandModel");
 const { BrandModel } = require("../../Models/BrandModel");
 
+const algoliasearch = require("algoliasearch");
+const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
+const algoliaIndex = algoliaClient.initIndex("products");
+
 const getAllProduct = async (req, res) => {
     let searchParams = cleanObject(req.body);
 
-    if (searchParams.hasOwnProperty("max") || searchParams.hasOwnProperty("min")) {
-        searchParams.sellingPrice = {};
-    }
+    if (searchParams.max || searchParams.min) searchParams.sellingPrice = {};
 
-    if (searchParams.hasOwnProperty("department")) {
-        const department = await DepartmentModel.findOne({ name: searchParams.department });
-        if (department) {
-            searchParams.departmentId = department._id;
-        }
+    if (searchParams.department) {
+        const d = await DepartmentModel.findOne({ name: searchParams.department });
+        if (d) searchParams.departmentId = d._id;
         delete searchParams.department;
     }
 
-    if (searchParams.hasOwnProperty("category")) {
-        const category = await CategoryModel.findOne({ name: searchParams.category });
-        if (category) {
-            searchParams.categoryId = category._id;
-        }
+    if (searchParams.category) {
+        const c = await CategoryModel.findOne({ name: searchParams.category });
+        if (c) searchParams.categoryId = c._id;
         delete searchParams.category;
     }
 
-    if (searchParams.hasOwnProperty("subcategory")) {
-        const subCategory = await SubCategoryModel.findOne({ name: searchParams.subcategory });
-        if (subCategory) {
-            searchParams.subCategoryId = subCategory._id;
-        }
+    if (searchParams.subcategory) {
+        const sc = await SubCategoryModel.findOne({ name: searchParams.subcategory });
+        if (sc) searchParams.subCategoryId = sc._id;
         delete searchParams.subcategory;
     }
 
-    if (searchParams.hasOwnProperty("subbrand")) {
-        const subBrand = await SubBrandModel.findOne({ name: searchParams.subbrand });
-        if (subBrand) {
-            searchParams.subBrandId = subBrand._id;
-        }
+    if (searchParams.subbrand) {
+        const sb = await SubBrandModel.findOne({ name: searchParams.subbrand });
+        if (sb) searchParams.subBrandId = sb._id;
         delete searchParams.subbrand;
     }
 
-    if (searchParams.hasOwnProperty("brand")) {
-        const brand = await BrandModel.findOne({ name: searchParams.brand });
-        if (brand) {
-            searchParams.brandId = brand._id;
-        }
+    if (searchParams.brand) {
+        const b = await BrandModel.findOne({ name: searchParams.brand });
+        if (b) searchParams.brandId = b._id;
         delete searchParams.brand;
     }
 
-    if (searchParams.hasOwnProperty("color")) {
+    if (searchParams.color) {
         searchParams.colors = { $elemMatch: { color: searchParams.color } };
         delete searchParams.color;
     }
 
-    if (searchParams.hasOwnProperty("size")) {
-        searchParams.sizes = { $elemMatch: { size: Number(searchParams.size) } };
+    if (searchParams.size) {
+        searchParams.sizes = { $elemMatch: { size: searchParams.size } };
         delete searchParams.size;
     }
 
-    if (searchParams.hasOwnProperty("min")) {
+    if (searchParams.min) {
         searchParams.sellingPrice.$gte = parseFloat(searchParams.min);
         delete searchParams.min;
     }
 
-    if (searchParams.hasOwnProperty("max")) {
+    if (searchParams.max) {
         searchParams.sellingPrice.$lte = parseFloat(searchParams.max);
         delete searchParams.max;
     }
@@ -80,37 +72,32 @@ const getAllProduct = async (req, res) => {
     const baseFilter = { ...searchParams };
     let allProducts = [];
 
-    console.log(baseFilter);
+    try {
+        if (isValidSearch) {
+            const cleanKeyword = keyword.trim();
+            const result = await algoliaIndex.search(cleanKeyword, {
+                hitsPerPage: 100,
+                attributesToRetrieve: ["_id"],
+            });
 
-    if (isValidSearch) {
-        const cleanKeyword = keyword.trim();
+            const ids = result.hits.map((hit) => hit._id);
+            baseFilter._id = { $in: ids };
+        }
 
-        let [textResults, tagResults] = await Promise.all([
-            ProductModel.find({ ...baseFilter, $text: { $search: cleanKeyword } }).populate(["batchId", "departmentId", "categoryId", "subCategoryId", "brandId", "subBrandId"]),
-            ProductModel.find({ ...baseFilter, tags: { $regex: new RegExp(cleanKeyword, "i") } }).populate(["batchId", "departmentId", "categoryId", "subCategoryId", "brandId", "subBrandId"]),
-        ]);
-
-        const productMap = new Map();
-        [...textResults, ...tagResults].forEach((product) => {
-            productMap.set(product._id.toString(), product);
-        });
-
-        allProducts = Array.from(productMap.values());
-    } else {
         allProducts = await ProductModel.find(baseFilter).populate(["batchId", "departmentId", "categoryId", "subCategoryId", "brandId", "subBrandId"]);
-    }
 
-    // Sort by stock descending
-    allProducts.sort((a, b) => b.stock - a.stock);
+        allProducts.sort((a, b) => b.stock - a.stock);
 
-    // Apply limit
-    const limit = parseInt(req.query.limit) || allProducts.length;
-    const limitedProducts = allProducts.slice(0, limit);
+        const limit = parseInt(req.query.limit) || allProducts.length;
+        const limitedProducts = allProducts.slice(0, limit);
 
-    if (limitedProducts.length > 0) {
-        res.status(200).send({ message: "All products", error: false, data: limitedProducts });
-    } else {
-        res.send({ message: "No products found", error: true });
+        if (limitedProducts.length > 0) {
+            res.status(200).send({ message: "All products", error: false, data: limitedProducts });
+        } else {
+            res.send({ message: "No products found", error: true });
+        }
+    } catch (err) {
+        res.status(500).json({ message: "Error searching products", error: true, details: err.message });
     }
 };
 

@@ -69,6 +69,11 @@ const createProduct = async (req, res) => {
                 brandId: savedProduct.brandId?.toString(),
                 categoryId: savedProduct.categoryId?.toString(),
                 departmentId: savedProduct.departmentId?.toString(),
+                
+                image: savedProduct.featuredImage.name,
+                sellingPrice: savedProduct.sellingPrice,
+                discount: savedProduct.discount
+
             };
 
             // Save to Algolia

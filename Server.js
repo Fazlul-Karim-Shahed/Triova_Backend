@@ -42,6 +42,7 @@ app.use(compression());
 
 const algoliasearch = require("algoliasearch");
 const { ProductModel } = require("./Models/ProductModel"); // Ensure correct path
+const { getDefaultAutoSelectFamilyAttemptTimeout } = require("net");
 
 const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
 const algoliaIndex = algoliaClient.initIndex("products");
@@ -57,6 +58,9 @@ const syncProductsToAlgolia = async () => {
             brandId: p.brandId?.toString(),
             categoryId: p.categoryId?.toString(),
             departmentId: p.departmentId?.toString(),
+            image: p.featuredImage.name,
+            sellingPrice: p.sellingPrice,
+            discount: p.discount
         }));
 
         const filteredObjects = objects.filter((obj) => {

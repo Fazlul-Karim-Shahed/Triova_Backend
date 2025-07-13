@@ -58,12 +58,17 @@ const updateProduct = async (req, res) => {
                 const algoliaObject = {
                     objectID: updated._id.toString(),
                     name: updated.name,
-                    tags: updated.tags,
-                    description: updated.description,
+                    tags: updated.tags?.slice(0, 10), // Limit array size
+                    description: updated.description?.slice(0, 500), // Truncate long text
                     brandId: updated.brandId?.toString(),
                     categoryId: updated.categoryId?.toString(),
                     departmentId: updated.departmentId?.toString(),
+
+                    image: updated.featuredImage.name,
+                    sellingPrice: updated.sellingPrice,
+                    discount: updated.discount
                 };
+
 
                 await algoliaIndex.saveObject(algoliaObject);
                 // console.log("Updated in Algolia:", updated._id);

@@ -7,7 +7,8 @@ const { SubCategoryModel } = require("../../Models/SubCategoryModel");
 const { SubBrandModel } = require("../../Models/SubBrandModel");
 const { BrandModel } = require("../../Models/BrandModel");
 
-const algoliasearch = require("algoliasearch"); // ✅ Correct default import
+const algoliasearch = require("algoliasearch");
+const { default: mongoose } = require("mongoose");
 const algoliaClient = algoliasearch(process.env.ALGOLIA_APP_ID, process.env.ALGOLIA_API_KEY);
 const algoliaIndex = algoliaClient.initIndex("products");
 
@@ -71,14 +72,18 @@ const getAllProduct = async (req, res) => {
         delete searchParams.search;
 
         const isValidSearch = typeof keyword === "string" && keyword.trim() !== "";
+
+        // ✅ Handle direct _id filtering from product_ids
+        if (Array.isArray(searchParams.product_ids) && searchParams.product_ids.length > 0) {
+            searchParams._id = { $in: searchParams.product_ids };
+            delete searchParams.product_ids;
+        }
+
         const baseFilter = { ...searchParams };
 
-        let allProducts = [];
-
-        if (isValidSearch) {
+        // ✅ Algolia fallback only if no product_ids provided
+        if (!baseFilter._id && isValidSearch) {
             const cleanKeyword = keyword.trim();
-
-            // console.log("Searching Algolia for:", cleanKeyword);
 
             const result = await algoliaIndex.search(cleanKeyword, {
                 hitsPerPage: 100,
@@ -86,7 +91,6 @@ const getAllProduct = async (req, res) => {
             });
 
             const ids = result.hits.map((hit) => hit.objectID);
-            // console.log("Algolia search returned IDs:", ids);
 
             if (ids.length === 0) {
                 return res.status(200).send({ message: "No products found", error: true, data: [] });
@@ -95,7 +99,9 @@ const getAllProduct = async (req, res) => {
             baseFilter._id = { $in: ids };
         }
 
-        allProducts = await ProductModel.find(baseFilter).populate(["batchId", "departmentId", "categoryId", "subCategoryId", "brandId", "subBrandId"]).lean();
+        // console.log("Base filter ::", baseFilter);
+
+        const allProducts = await ProductModel.find(baseFilter).populate(["batchId", "departmentId", "categoryId", "subCategoryId", "brandId", "subBrandId"]).lean();
 
         allProducts.sort((a, b) => b.stock - a.stock);
 

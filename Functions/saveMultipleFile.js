@@ -30,19 +30,19 @@ const saveMultipleFile = async (files) => {
                 unique_filename: false,
             };
 
-            // Skip optimization for SVG
+            // Add transformations only for non-SVG images
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation = [
                     {
-                        width: 1200, // Resize only if image is wider than 1200px
-                        crop: "limit", // Prevent upscaling
-                        quality: "auto", // Best visual quality with smart compression
-                        fetch_format: "auto", // Use modern format like WebP/AVIF
+                        width: 1200,
+                        crop: "limit",
+                        quality: "auto",
+                        fetch_format: "auto",
                     },
                 ];
             }
 
-            return await new Promise((resolve, reject) => {
+            return await new Promise((resolve) => {
                 const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
                     if (error) {
                         console.error("Upload failed:", error);
@@ -50,7 +50,9 @@ const saveMultipleFile = async (files) => {
                     }
 
                     const sizeKB = result.bytes / 1024;
-                    if (sizeKB > MAX_FILE_SIZE_KB) {
+
+                    // Skip size check for SVGs
+                    if (fileExtension !== ".svg" && sizeKB > MAX_FILE_SIZE_KB) {
                         console.warn(`Skipped ${file.originalFilename} — size too large after upload: ${Math.round(sizeKB)} KB`);
                         return resolve(null);
                     }

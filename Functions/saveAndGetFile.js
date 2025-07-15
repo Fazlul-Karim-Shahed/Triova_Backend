@@ -3,7 +3,7 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
-const MAX_SIZE_KB = 300;
+const MAX_SIZE_KB = 200;
 
 const saveAndGetFile = async (file) => {
     try {
@@ -27,7 +27,6 @@ const saveAndGetFile = async (file) => {
             unique_filename: false,
         };
 
-        // Skip transformation for SVG
         if (fileExtension !== ".svg") {
             uploadOptions.transformation = [
                 {
@@ -47,7 +46,9 @@ const saveAndGetFile = async (file) => {
                 }
 
                 const sizeKB = result.bytes / 1024;
-                if (sizeKB > MAX_SIZE_KB) {
+
+                // Skip size check for SVGs
+                if (fileExtension !== ".svg" && sizeKB > MAX_SIZE_KB) {
                     console.warn(`Skipped ${file.originalFilename} — size too large after upload: ${Math.round(sizeKB)} KB`);
                     return resolve(null);
                 }

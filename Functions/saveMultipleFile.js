@@ -3,7 +3,7 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
-const MAX_FILE_SIZE_KB = 200;
+const MAX_FILE_SIZE_KB = 300;
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -36,7 +36,7 @@ const saveMultipleFile = async (files) => {
                 uploadOptions.transformation.push({
                     width: 1000, // Reduce to 1000px max
                     crop: "limit",
-                    quality: "auto", // Aggressive compression
+                    quality: "auto:best", // Aggressive compression
                     fetch_format: "auto", // Modern format like WebP
                 });
             }

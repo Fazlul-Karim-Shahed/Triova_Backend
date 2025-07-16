@@ -4,7 +4,7 @@ const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const stream = require("stream");
 
-const MAX_SIZE_KB = 200;
+const MAX_SIZE_KB = 300;
 
 // Configure Cloudinary once
 cloudinary.config({
@@ -53,7 +53,7 @@ const uploadFiles = async (req, res) => {
                 uploadOptions.transformation.push({
                     width: 1000,
                     crop: "limit",
-                    quality: "auto",
+                    quality: "auto:best",
                     fetch_format: "auto",
                 });
             }

@@ -3,7 +3,13 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
-const MAX_FILE_SIZE_KB = 300;
+const MAX_FILE_SIZE_KB = 200;
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const saveMultipleFile = async (files) => {
     if (!files || files.length === 0) return [];
@@ -14,12 +20,6 @@ const saveMultipleFile = async (files) => {
             const fileExtension = path.extname(file.originalFilename).toLowerCase();
             const baseName = path.basename(file.originalFilename, fileExtension);
 
-            cloudinary.config({
-                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                api_key: process.env.CLOUDINARY_API_KEY,
-                api_secret: process.env.CLOUDINARY_API_SECRET,
-            });
-
             const uploadOptions = {
                 folder: "uploads",
                 public_id: baseName,
@@ -28,18 +28,17 @@ const saveMultipleFile = async (files) => {
                 invalidate: true,
                 use_filename: true,
                 unique_filename: false,
+                transformation: [],
             };
 
-            // Add transformations only for non-SVG images
+            // Only apply compression for non-SVG images
             if (fileExtension !== ".svg") {
-                uploadOptions.transformation = [
-                    {
-                        width: 1200,
-                        crop: "limit",
-                        quality: "auto",
-                        fetch_format: "auto",
-                    },
-                ];
+                uploadOptions.transformation.push({
+                    width: 800, // Reduce to 800px max
+                    crop: "limit",
+                    quality: "auto:low", // Aggressive compression
+                    fetch_format: "auto", // Modern format like WebP
+                });
             }
 
             return await new Promise((resolve) => {
@@ -51,9 +50,9 @@ const saveMultipleFile = async (files) => {
 
                     const sizeKB = result.bytes / 1024;
 
-                    // Skip size check for SVGs
+                    // Enforce file size limit for non-SVGs
                     if (fileExtension !== ".svg" && sizeKB > MAX_FILE_SIZE_KB) {
-                        console.warn(`Skipped ${file.originalFilename} — size too large after upload: ${Math.round(sizeKB)} KB`);
+                        console.warn(`Skipped ${file.originalFilename} — size after upload: ${Math.round(sizeKB)} KB`);
                         return resolve(null);
                     }
 

@@ -4,6 +4,15 @@ const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const stream = require("stream");
 
+const MAX_SIZE_KB = 200;
+
+// Configure Cloudinary once
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 const uploadFiles = async (req, res) => {
     const form = new IncomingForm({
         multiples: false,
@@ -22,50 +31,54 @@ const uploadFiles = async (req, res) => {
         }
 
         const tempPath = file.filepath || file.path;
-        const originalName = file.originalFilename || `upload-${Date.now()}`;
         const fileExtension = path.extname(file.originalFilename).toLowerCase();
         const baseName = path.basename(file.originalFilename, fileExtension);
-
-        // console.log("Processing: ", baseName);
 
         try {
             const fileBuffer = await fs.promises.readFile(tempPath);
 
+            const uploadOptions = {
+                folder: "uploads",
+                public_id: baseName,
+                resource_type: "image",
+                overwrite: true,
+                invalidate: true,
+                use_filename: true,
+                unique_filename: false,
+                transformation: [],
+            };
+
+            // Apply compression only if not SVG
+            if (fileExtension !== ".svg") {
+                uploadOptions.transformation.push({
+                    width: 800,
+                    crop: "limit",
+                    quality: "auto:low",
+                    fetch_format: "auto",
+                });
+            }
+
             const result = await new Promise((resolve, reject) => {
-                cloudinary.config({
-                    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                    api_key: process.env.CLOUDINARY_API_KEY,
-                    api_secret: process.env.CLOUDINARY_API_SECRET,
+                const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+                    if (error) return reject(error);
+
+                    const sizeKB = result.bytes / 1024;
+                    if (fileExtension !== ".svg" && sizeKB > MAX_SIZE_KB) {
+                        console.warn(`Upload skipped — ${result.original_filename} is too large: ${Math.round(sizeKB)} KB`);
+                        return resolve(null);
+                    }
+
+                    return resolve(result);
                 });
 
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    {
-                        folder: "uploads",
-                        public_id: baseName,
-                        resource_type: "image",
-                        overwrite: true,
-                        invalidate: true,
-                    },
-                    (error, result) => {
-                        if (error) return reject(error);
-                        else {
-                            console.log({
-                                error: false,
-                                message: "File uploaded successfully.",
-                                fileName: result.original_filename,
-                                url: result.secure_url,
-                                public_id: result.public_id,
-                            });
-                            resolve(result);
-                        }
-                    }
-                );
-
-                
                 const bufferStream = new stream.PassThrough();
                 bufferStream.end(fileBuffer);
                 bufferStream.pipe(uploadStream);
             });
+
+            if (!result) {
+                return res.status(413).json({ error: true, message: "File too large after compression." });
+            }
 
             return res.status(200).json({
                 error: false,
@@ -75,7 +88,7 @@ const uploadFiles = async (req, res) => {
                 public_id: result.public_id,
             });
         } catch (uploadErr) {
-            console.error(`Cloudinary upload error for ${baseName} `, uploadErr);
+            console.error(`Cloudinary upload error for ${baseName}`, uploadErr);
             return res.status(500).json({ error: true, message: "Upload failed." });
         }
     });

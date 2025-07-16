@@ -5,17 +5,17 @@ const stream = require("stream");
 
 const MAX_SIZE_KB = 200;
 
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 const saveAndGetFile = async (file) => {
     try {
         const inputBuffer = await fs.readFile(file.filepath);
         const fileExtension = path.extname(file.originalFilename).toLowerCase();
         const baseName = path.basename(file.originalFilename, fileExtension);
-
-        cloudinary.config({
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-            api_key: process.env.CLOUDINARY_API_KEY,
-            api_secret: process.env.CLOUDINARY_API_SECRET,
-        });
 
         const uploadOptions = {
             folder: "uploads",
@@ -25,17 +25,16 @@ const saveAndGetFile = async (file) => {
             invalidate: true,
             use_filename: true,
             unique_filename: false,
+            transformation: [],
         };
 
         if (fileExtension !== ".svg") {
-            uploadOptions.transformation = [
-                {
-                    width: 1200,
-                    crop: "limit",
-                    quality: "auto",
-                    fetch_format: "auto",
-                },
-            ];
+            uploadOptions.transformation.push({
+                width: 800,
+                crop: "limit",
+                quality: "auto:low",
+                fetch_format: "auto",
+            });
         }
 
         return await new Promise((resolve) => {
@@ -47,7 +46,7 @@ const saveAndGetFile = async (file) => {
 
                 const sizeKB = result.bytes / 1024;
 
-                // Skip size check for SVGs
+                // Enforce file size limit for non-SVGs
                 if (fileExtension !== ".svg" && sizeKB > MAX_SIZE_KB) {
                     console.warn(`Skipped ${file.originalFilename} — size too large after upload: ${Math.round(sizeKB)} KB`);
                     return resolve(null);

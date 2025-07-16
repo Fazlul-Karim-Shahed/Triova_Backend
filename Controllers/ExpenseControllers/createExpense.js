@@ -22,7 +22,6 @@ const createExpense = async (req, res) => {
 
         let documents = files && files["documents[]"] && files["documents[]"].length > 0 ? saveMultipleFile(files["documents[]"]) : null;
 
-
         if (documents) {
             documents.then((data) => {
                 // //console.log("Create Expense Data: ", data);
@@ -39,14 +38,7 @@ const createExpense = async (req, res) => {
                     });
             });
         } else {
-            expense
-                .save()
-                .then((expense) => {
-                    res.send({ message: "expense created successfully", error: false, data: expense });
-                })
-                .catch((err) => {
-                    res.send({ message: err.message, error: true });
-                });
+            res.send({ message: "Documents upload failed", error: true });
         }
     });
 };

@@ -30,7 +30,7 @@ const saveAndGetFile = async (file) => {
 
         if (fileExtension !== ".svg") {
             uploadOptions.transformation.push({
-                width: 1000,
+                width: 1200,
                 crop: "limit",
                 quality: "auto",
                 fetch_format: "auto",

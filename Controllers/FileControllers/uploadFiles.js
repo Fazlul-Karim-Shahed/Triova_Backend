@@ -51,7 +51,7 @@ const uploadFiles = async (req, res) => {
             // Apply compression only if not SVG
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation.push({
-                    width: 1000,
+                    width: 1200,
                     crop: "limit",
                     quality: "auto",
                     fetch_format: "auto",

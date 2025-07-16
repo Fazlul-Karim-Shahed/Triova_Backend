@@ -32,7 +32,7 @@ const saveAndGetFile = async (file) => {
             uploadOptions.transformation.push({
                 width: 1000,
                 crop: "limit",
-                quality: "auto:low",
+                quality: "auto",
                 fetch_format: "auto",
             });
         }

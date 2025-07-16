@@ -36,7 +36,7 @@ const saveMultipleFile = async (files) => {
                 uploadOptions.transformation.push({
                     width: 1000, // Reduce to 1000px max
                     crop: "limit",
-                    quality: "auto:low", // Aggressive compression
+                    quality: "auto", // Aggressive compression
                     fetch_format: "auto", // Modern format like WebP
                 });
             }

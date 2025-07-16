@@ -34,9 +34,9 @@ const saveMultipleFile = async (files) => {
             // Only apply compression for non-SVG images
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation.push({
-                    width: 1200, // Reduce to 1000px max
+                    width: 1000, // Reduce to 1000px max
                     crop: "limit",
-                    quality: "auto:best", // Aggressive compression
+                    quality: "auto", // Aggressive compression
                     fetch_format: "auto", // Modern format like WebP
                 });
             }

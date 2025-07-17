@@ -2,8 +2,9 @@ const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
+const sharp = require("sharp");
 
-const MAX_SIZE_KB = 400;
+const MAX_SIZE_KB = 5 * 1024;
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -11,11 +12,61 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const compressImage = async (inputBuffer, fileExtension) => {
+    const sharpInstance = sharp(inputBuffer).resize({
+        width: 1200,
+        withoutEnlargement: true,
+    });
+
+    switch (fileExtension) {
+        case ".jpg":
+        case ".jpeg":
+            return await sharpInstance
+                .jpeg({
+                    quality: 90, // Great balance between quality and size
+                    mozjpeg: true, // More efficient compression
+                    chromaSubsampling: "4:4:4",
+                })
+                .toBuffer();
+
+        case ".png":
+            return await sharpInstance
+                .png({
+                    quality: 90, // quality parameter works indirectly in PNG
+                    compressionLevel: 9, // max compression
+                    adaptiveFiltering: true,
+                })
+                .toBuffer();
+
+        case ".webp":
+            return await sharpInstance
+                .webp({
+                    quality: 90,
+                    effort: 4, // slightly slower but sharper
+                })
+                .toBuffer();
+
+        default:
+            return inputBuffer; // fallback (e.g., SVG or unsupported)
+    }
+};
+
 const saveAndGetFile = async (file) => {
     try {
         const inputBuffer = await fs.readFile(file.filepath);
         const fileExtension = path.extname(file.originalFilename).toLowerCase();
         const baseName = path.basename(file.originalFilename, fileExtension);
+
+        let finalBuffer = inputBuffer;
+
+        if (fileExtension !== ".svg") {
+            finalBuffer = await compressImage(inputBuffer, fileExtension);
+            const sizeKB = finalBuffer.length / 1024;
+            if (sizeKB > MAX_SIZE_KB) {
+                console.warn(`Compression failed to meet size limit: ${Math.round(sizeKB)} KB`);
+                return null;
+            }
+        }
 
         const uploadOptions = {
             folder: "uploads",
@@ -28,12 +79,13 @@ const saveAndGetFile = async (file) => {
             transformation: [],
         };
 
+        // Apply Cloudinary transformations only if not SVG
         if (fileExtension !== ".svg") {
             uploadOptions.transformation.push({
-                quality: "auto:best", // smart compression for best visual quality
-                fetch_format: "auto", // use WebP/AVIF when available
-                dpr: "auto", // ensures sharp display on high-DPI screens
-                flags: "preserve_transparency",
+                width: 1200,
+                crop: "limit",
+                quality: "100",
+                fetch_format: "auto",
             });
         }
 
@@ -45,8 +97,6 @@ const saveAndGetFile = async (file) => {
                 }
 
                 const sizeKB = result.bytes / 1024;
-
-                // Enforce file size limit for non-SVGs
                 if (fileExtension !== ".svg" && sizeKB > MAX_SIZE_KB) {
                     console.warn(`Skipped ${file.originalFilename} — size too large after upload: ${Math.round(sizeKB)} KB`);
                     return resolve(null);
@@ -60,7 +110,7 @@ const saveAndGetFile = async (file) => {
             });
 
             const bufferStream = new stream.PassThrough();
-            bufferStream.end(inputBuffer);
+            bufferStream.end(finalBuffer);
             bufferStream.pipe(uploadStream);
         });
     } catch (err) {

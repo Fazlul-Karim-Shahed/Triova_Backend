@@ -3,15 +3,54 @@ const fs = require("fs");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const stream = require("stream");
+const sharp = require("sharp");
 
-const MAX_SIZE_KB = 400;
+const MAX_SIZE_KB = 5 * 1024;
 
-// Configure Cloudinary once
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+const compressImage = async (inputBuffer, fileExtension) => {
+    const sharpInstance = sharp(inputBuffer).resize({
+        width: 1200,
+        withoutEnlargement: true,
+    });
+
+    switch (fileExtension) {
+        case ".jpg":
+        case ".jpeg":
+            return await sharpInstance
+                .jpeg({
+                    quality: 90,
+                    mozjpeg: true,
+                    chromaSubsampling: "4:4:4",
+                })
+                .toBuffer();
+
+        case ".png":
+            return await sharpInstance
+                .png({
+                    quality: 90,
+                    compressionLevel: 9,
+                    adaptiveFiltering: true,
+                })
+                .toBuffer();
+
+        case ".webp":
+            return await sharpInstance
+                .webp({
+                    quality: 90,
+                    effort: 4,
+                })
+                .toBuffer();
+
+        default:
+            return inputBuffer; // No compression for SVG or unsupported formats
+    }
+};
 
 const uploadFiles = async (req, res) => {
     const form = new IncomingForm({
@@ -37,6 +76,17 @@ const uploadFiles = async (req, res) => {
         try {
             const fileBuffer = await fs.promises.readFile(tempPath);
 
+            // Compress the file buffer if not SVG
+            let finalBuffer = fileBuffer;
+            if (fileExtension !== ".svg") {
+                finalBuffer = await compressImage(fileBuffer, fileExtension);
+                const sizeKB = finalBuffer.length / 1024;
+                if (sizeKB > MAX_SIZE_KB) {
+                    console.warn(`Compression failed: ${file.originalFilename} size after compression is ${Math.round(sizeKB)} KB`);
+                    return res.status(413).json({ error: true, message: "File too large after compression." });
+                }
+            }
+
             const uploadOptions = {
                 folder: "uploads",
                 public_id: baseName,
@@ -48,7 +98,7 @@ const uploadFiles = async (req, res) => {
                 transformation: [],
             };
 
-            // Apply compression only if not SVG
+            // Apply Cloudinary transformations only if not SVG
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation.push({
                     width: 1200,
@@ -72,12 +122,12 @@ const uploadFiles = async (req, res) => {
                 });
 
                 const bufferStream = new stream.PassThrough();
-                bufferStream.end(fileBuffer);
+                bufferStream.end(finalBuffer);
                 bufferStream.pipe(uploadStream);
             });
 
             if (!result) {
-                return res.status(413).json({ error: true, message: "File too large after compression." });
+                return res.status(413).json({ error: true, message: "File too large after upload." });
             }
 
             return res.status(200).json({

@@ -32,7 +32,7 @@ const saveAndGetFile = async (file) => {
             uploadOptions.transformation.push({
                 width: 1200,
                 height: 1200,
-                crop: "fit", // or try "fill" if you want it exact
+                crop: "fill", // or try "fill" if you want it exact
                 quality: "auto:best", // uses best compression + retains sharpness
                 fetch_format: "auto",
                 dpr: "auto", // makes it sharp on retina displays

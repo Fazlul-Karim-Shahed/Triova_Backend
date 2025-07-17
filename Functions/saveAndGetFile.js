@@ -3,7 +3,7 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
-const MAX_SIZE_KB = 300;
+const MAX_SIZE_KB = 400;
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -30,7 +30,7 @@ const saveAndGetFile = async (file) => {
 
         if (fileExtension !== ".svg") {
             uploadOptions.transformation.push({
-                width: 1000,
+                width: 1200,
                 crop: "limit",
                 quality: "auto:best",
                 fetch_format: "auto",

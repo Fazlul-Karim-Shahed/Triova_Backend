@@ -4,7 +4,7 @@ const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const stream = require("stream");
 
-const MAX_SIZE_KB = 300;
+const MAX_SIZE_KB = 400;
 
 // Configure Cloudinary once
 cloudinary.config({
@@ -51,7 +51,7 @@ const uploadFiles = async (req, res) => {
             // Apply compression only if not SVG
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation.push({
-                    width: 1000,
+                    width: 1200,
                     crop: "limit",
                     quality: "auto:best",
                     fetch_format: "auto",

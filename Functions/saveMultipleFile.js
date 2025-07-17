@@ -3,7 +3,7 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs").promises;
 const stream = require("stream");
 
-const MAX_FILE_SIZE_KB = 300;
+const MAX_FILE_SIZE_KB = 400;
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -34,7 +34,7 @@ const saveMultipleFile = async (files) => {
             // Only apply compression for non-SVG images
             if (fileExtension !== ".svg") {
                 uploadOptions.transformation.push({
-                    width: 1000, // Reduce to 1000px max
+                    width: 1200, // Reduce to 1000px max
                     crop: "limit",
                     quality: "auto:best", // Aggressive compression
                     fetch_format: "auto", // Modern format like WebP

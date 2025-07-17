@@ -30,12 +30,10 @@ const saveAndGetFile = async (file) => {
 
         if (fileExtension !== ".svg") {
             uploadOptions.transformation.push({
-                width: 1200,
-                height: 1200,
-                crop: "fill", // or try "fill" if you want it exact
-                quality: "auto:best", // uses best compression + retains sharpness
-                fetch_format: "auto",
-                dpr: "auto", // makes it sharp on retina displays
+                quality: "auto:best", // smart compression for best visual quality
+                fetch_format: "auto", // use WebP/AVIF when available
+                dpr: "auto", // ensures sharp display on high-DPI screens
+                flags: "preserve_transparency",
             });
         }
 
